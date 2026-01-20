@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "fit--bootstrap"
+version = "0.1.0"
+description = "FIT Bootstrap Module"
+authors = ["FIT Project"]
+license = "LGPL-3.0-or-later"
+packages = [
+    { include = "fit_bootstrap" }
+]
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.14"
+psutil = "^5.9.8"
+packaging = "^24.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
