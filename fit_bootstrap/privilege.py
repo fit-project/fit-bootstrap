@@ -75,6 +75,12 @@ def _relaunch_macos(
     if askpass.exists():
         env = os.environ.copy()
         env["SUDO_ASKPASS"] = str(askpass)
+        env["FIT_ASKPASS_MODE"] = "pyside"
+        env["FIT_ASKPASS_PYTHON"] = sys.executable
+        if os.environ.get("FIT_BOOTSTRAP_DEBUG") == "1":
+            env["FIT_ASKPASS_DEBUG"] = "1"
+            if "FIT_ASKPASS_LOG" in os.environ:
+                env["FIT_ASKPASS_LOG"] = os.environ["FIT_ASKPASS_LOG"]
         env["DISPLAY"] = env.get("DISPLAY", ":0")
         if env_overrides:
             env.update(env_overrides)

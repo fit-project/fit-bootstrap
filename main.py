@@ -1,27 +1,23 @@
-from __future__ import annotations
-
 import argparse
 import atexit
 import os
-import signal
-import subprocess
 import sys
-import time
 from pathlib import Path
 
 from fit_common.core import DebugLevel, debug, get_platform, set_debug_level
+from fit_common.core.paths import resolve_log_path
 
 from fit_bootstrap.bootstrap import Bootstrap
 from fit_bootstrap.macos.certificate import CertificateManager
 from fit_bootstrap.macos.proxy import MacProxyManager, ProxyState
+from fit_bootstrap.macos.mitmproxy_runner import MitmproxyRunner
 from fit_bootstrap.privilege import ensure_root_or_relaunch
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
 
 _STAGE_ENV = "FIT_BOOTSTRAP_STAGE"
 _STAGE_GUI = "gui"
 _OUTPUT_DIR = Path("/Users/zitelog/Developer/Workspace/fit-bootstrap/mimtproxy")
-_MITM_PID_FILE = _OUTPUT_DIR / "mitmproxy.pid"
-_MITM_HAR_FILE = _OUTPUT_DIR / "capture.har"
+_IS_BUNDLED = bool(getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"))
 
 
 def __log_bootstrap_result(result: BootstrapResult) -> None:
@@ -44,128 +40,6 @@ def parse_args() -> argparse.Namespace:
         help="Set the debug level (default: none)",
     )
     return parser.parse_args()
-
-
-def _is_bundled() -> bool:
-    return bool(getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"))
-
-
-def _bundle_root() -> Path | None:
-    if not _is_bundled():
-        return None
-    app_path = Path(sys.executable).resolve()
-    app_bundle = app_path
-    while app_bundle.name != "Contents" and app_bundle.parent != app_bundle:
-        app_bundle = app_bundle.parent
-    if app_bundle.name != "Contents":
-        return None
-    return app_bundle.parent
-
-
-def _ensure_not_quarantined_if_bundled() -> bool:
-    bundle_root = _bundle_root()
-    if not bundle_root:
-        debug("PRE-FLIGHT: not a bundled macOS app, skipping quarantine check")
-        return True
-
-    result = subprocess.run(
-        ["xattr", "-p", "com.apple.quarantine", str(bundle_root)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0 or not result.stdout.strip():
-        debug("PRE-FLIGHT: app bundle is not quarantined")
-        return True
-
-    debug("PRE-FLIGHT: removing quarantine attributes from app bundle")
-    remove = subprocess.run(
-        ["xattr", "-dr", "com.apple.quarantine", str(bundle_root)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if remove.returncode != 0:
-        debug(
-            f"❌ Unable to clear quarantine: {remove.stderr.strip() or remove.stdout.strip()}"
-        )
-        return False
-    debug("✅ Quarantine attributes removed")
-    return True
-
-
-def _write_mitm_pid(pid: int) -> None:
-    try:
-        _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        _MITM_PID_FILE.write_text(str(pid))
-    except OSError as exc:
-        debug(f"❌ Unable to write mitmproxy pid file: {exc}")
-
-
-def _read_mitm_pid() -> int | None:
-    try:
-        return int(_MITM_PID_FILE.read_text().strip())
-    except (OSError, ValueError):
-        return None
-
-
-def _clear_mitm_pid() -> None:
-    try:
-        _MITM_PID_FILE.unlink()
-    except OSError:
-        pass
-
-
-def _start_mitmproxy() -> subprocess.Popen[str] | None:
-    try:
-        _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        proc = subprocess.Popen(
-            ["mitmdump", "--set", f"hardump={_MITM_HAR_FILE}"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            text=True,
-        )
-    except FileNotFoundError:
-        debug("❌ mitmdump not found in PATH")
-        return None
-
-    time.sleep(0.2)
-    if proc.poll() is not None:
-        debug("❌ mitmproxy exited immediately after start")
-        return None
-    _write_mitm_pid(proc.pid)
-    debug(f"✅ mitmproxy started (pid={proc.pid})")
-    return proc
-
-
-def _stop_mitmproxy(proc: subprocess.Popen[str] | None) -> None:
-    if not proc or proc.poll() is not None:
-        return
-    proc.terminate()
-    try:
-        proc.wait(timeout=3)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-    _clear_mitm_pid()
-
-
-def _stop_mitmproxy_by_pid() -> bool:
-    pid = _read_mitm_pid()
-    if not pid:
-        debug("❌ mitmproxy pid not found")
-        return False
-    try:
-        os.kill(pid, signal.SIGTERM)
-    except ProcessLookupError:
-        _clear_mitm_pid()
-        debug("ℹ️ mitmproxy process already stopped")
-        return True
-    except OSError as exc:
-        debug(f"❌ Unable to stop mitmproxy: {exc}")
-        return False
-    _clear_mitm_pid()
-    return True
-
 
 def _run_gui() -> int:
     try:
@@ -196,6 +70,7 @@ def _run_gui() -> int:
     stop_button.setEnabled(False)
     proxy_manager: MacProxyManager | None = None
     proxy_state: ProxyState | None = None
+    mitm_runner = MitmproxyRunner(_OUTPUT_DIR)
 
     def _restore_proxy() -> None:
         nonlocal proxy_manager, proxy_state
@@ -245,7 +120,7 @@ def _run_gui() -> int:
     def _stop_mitm() -> None:
         stop_mitm_button.setEnabled(False)
         status_label.setText("Mitmproxy status: stopping...")
-        if _stop_mitmproxy_by_pid():
+        if mitm_runner.stop_by_pid():
             status_label.setText("Mitmproxy status: stopped")
         else:
             status_label.setText("Mitmproxy status: stop failed")
@@ -259,6 +134,11 @@ def _run_gui() -> int:
 
 
 def main() -> int:
+    if os.environ.get("FIT_ASKPASS_PYSIDE") == "1":
+        from fit_bootstrap.macos.askpass_pyside import main as askpass_main
+
+        return askpass_main()
+
     args = parse_args()
     set_debug_level(
         {
@@ -267,6 +147,12 @@ def main() -> int:
             "verbose": DebugLevel.VERBOSE,
         }[args.debug]
     )
+    if args.debug != "none":
+        os.environ["FIT_BOOTSTRAP_DEBUG"] = "1"
+        os.environ["FIT_ASKPASS_LOG"] = resolve_log_path("askpass.log")
+
+    debug(f"argv: {sys.argv}")
+    debug(f"bundled: {_IS_BUNDLED}")
 
     platform = get_platform()
     if platform == "macos":
@@ -276,9 +162,6 @@ def main() -> int:
                 return 1
             return _run_gui()
 
-        if not _ensure_not_quarantined_if_bundled():
-            return 1
-
         cert_manager = CertificateManager()
         debug("PRE-FLIGHT: verifying CA certificate")
         if cert_manager.add_cert() != 0:
@@ -286,23 +169,25 @@ def main() -> int:
             return 1
 
         debug("PRE-FLIGHT: starting mitmproxy")
-        mitm_process = _start_mitmproxy()
+        mitm_runner = MitmproxyRunner(_OUTPUT_DIR)
+        mitm_process = mitm_runner.start()
         if not mitm_process:
             return 1
-        atexit.register(_stop_mitmproxy, mitm_process)
+        atexit.register(mitm_runner.stop, mitm_process)
 
         if os.geteuid() == 0:
             return _run_gui()
 
         debug("PRE-FLIGHT: relaunching as root via osascript")
+        relaunch_argv = list(sys.argv[1:] if _IS_BUNDLED else sys.argv)
         relaunch_code = ensure_root_or_relaunch(
-            list(sys.argv),
+            relaunch_argv,
             prefer_osascript=True,
             env_overrides={_STAGE_ENV: _STAGE_GUI},
         )
         if relaunch_code != 0:
             debug("❌ Elevation failed")
-            _stop_mitmproxy(mitm_process)
+            mitm_runner.stop(mitm_process)
         return relaunch_code
 
     bootstrap = Bootstrap()

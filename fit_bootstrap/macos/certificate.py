@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from importlib.resources import files
 from pathlib import Path
 
@@ -14,7 +15,6 @@ class CertificateManager:
     )
     debug(f"Certificate path: {CERT_PATH}")
     KEYCHAIN = "/Library/Keychains/System.keychain"
-    USER_KEYCHAIN = str(Path.home() / "Library/Keychains/login.keychain-db")
 
     def __init__(self):
         self.cert_path = self.CERT_PATH
@@ -61,7 +61,7 @@ class CertificateManager:
                 text=True,
                 check=False,
             )
-            
+
             return self.cert_sha1 in result.stdout
         except subprocess.CalledProcessError as e:
             debug(f"Error searching for certificate: {e}")
@@ -104,6 +104,12 @@ class CertificateManager:
             env = os.environ.copy()
             if askpass.exists():
                 env["SUDO_ASKPASS"] = str(askpass)
+                env["FIT_ASKPASS_MODE"] = "pyside"
+                env["FIT_ASKPASS_PYTHON"] = sys.executable
+                if os.environ.get("FIT_BOOTSTRAP_DEBUG") == "1":
+                    env["FIT_ASKPASS_DEBUG"] = "1"
+                    if "FIT_ASKPASS_LOG" in os.environ:
+                        env["FIT_ASKPASS_LOG"] = os.environ["FIT_ASKPASS_LOG"]
                 env["DISPLAY"] = env.get("DISPLAY", ":0")
                 result = subprocess.run(
                     ["sudo", "-A", *cmd],
@@ -122,7 +128,10 @@ class CertificateManager:
             if result.returncode != 0:
                 stderr = result.stderr.strip()
                 stdout = result.stdout.strip()
-                duplicate = "already exists" in stderr.lower() or "already exists" in stdout.lower()
+                duplicate = (
+                    "already exists" in stderr.lower()
+                    or "already exists" in stdout.lower()
+                )
                 if not duplicate:
                     debug(f"❌ Error during installation: {stderr or stdout}")
                     return 1
@@ -134,27 +143,4 @@ class CertificateManager:
                 debug(f"❌ Installer stdout: {e.stdout.strip()}")
             if e.stderr:
                 debug(f"❌ Installer stderr: {e.stderr.strip()}")
-            return 1
-
-
-    def remove_cert(self) -> int:
-        if not self.cert_sha1:
-            debug("❌ Unable to compute certificate SHA1")
-            return 1
-
-        debug(f"➖ Removing mitmproxy certificate (SHA1={self.cert_sha1})")
-
-        if not self.__cert_exists_in_keychain():
-            debug("ℹ️ Certificate not present, nothing to remove.")
-            return 0
-
-        try:
-            subprocess.run(
-                ["security", "delete-certificate", "-Z", self.cert_sha1, self.keychain],
-                check=True,
-            )
-            debug("✅ Certificate removed.")
-            return 0
-        except subprocess.CalledProcessError as e:
-            debug(f"❌ Error during removal: {e}")
             return 1

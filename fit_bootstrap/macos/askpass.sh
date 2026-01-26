@@ -1,18 +1,38 @@
 #!/bin/sh
 
-pw=$(
-  /usr/bin/osascript <<'APPLESCRIPT'
-tell application "System Events"
-    activate
-    try
-        display dialog "FIT Bootstrap needs administrator privileges." default answer "" with hidden answer buttons {"Cancel", "OK"} default button "OK"
-        text returned of result
-    on error number -128
-        return ""
-    end try
-end tell
-APPLESCRIPT
-)
+pw=""
+if [ -n "$FIT_ASKPASS_LOG" ]; then
+  log="$FIT_ASKPASS_LOG"
+else
+  log="/tmp/fit-askpass.log"
+fi
+log_enabled=0
+if [ "$FIT_ASKPASS_DEBUG" = "1" ]; then
+  log_enabled=1
+fi
+
+if [ "$FIT_ASKPASS_MODE" = "pyside" ] && [ -n "$FIT_ASKPASS_PYTHON" ]; then
+  if [ "$log_enabled" -eq 1 ]; then
+    echo "askpass: trying pyside" >> "$log"
+    echo "askpass: python=$FIT_ASKPASS_PYTHON" >> "$log"
+  fi
+  case "$FIT_ASKPASS_PYTHON" in
+    *".app/Contents/MacOS/"*)
+      pw=$(FIT_ASKPASS_PYSIDE=1 "$FIT_ASKPASS_PYTHON" 2>>"$log")
+      ;;
+    *)
+      pw=$("$FIT_ASKPASS_PYTHON" -m fit_bootstrap.macos.askpass_pyside 2>>"$log")
+      ;;
+  esac
+  if [ "$log_enabled" -eq 1 ]; then
+    echo "askpass: pyside rc=$?" >> "$log"
+  fi
+  if [ -z "$pw" ]; then
+    if [ "$log_enabled" -eq 1 ]; then
+      echo "askpass: pyside produced no password" >> "$log"
+    fi
+  fi
+fi
 
 if [ -z "$pw" ]; then
   exit 1
