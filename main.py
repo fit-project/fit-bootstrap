@@ -132,6 +132,11 @@ def _run_gui() -> int:
 
 
 def main() -> int:
+    if get_platform() == "macos" and os.environ.get("FIT_MITM_LAUNCH") == "1":
+        from mitmproxy.tools.main import mitmdump
+
+        return mitmdump()
+
     if get_platform() == "macos" and os.environ.get("FIT_ASKPASS_PYSIDE") == "1":
         from fit_bootstrap.macos.askpass_pyside import main as askpass_main
 

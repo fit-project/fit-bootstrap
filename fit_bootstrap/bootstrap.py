@@ -37,7 +37,7 @@ class Bootstrap:
                     result = cert_result
                 else:
                     debug("PRE-FLIGHT: starting mitmproxy")
-                    mitm_runner = MitmproxyRunner()
+                    mitm_runner = MitmproxyRunner(debug_enabled=debug_enabled)
                     mitm_process = mitm_runner.start()
                     if not mitm_process:
                         result = BootstrapResult(

@@ -4,18 +4,20 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
 from fit_common.core import debug
-from fit_common.core.paths import resolve_app_path
+from fit_common.core.paths import resolve_app_path, resolve_log_path
 
 
 class MitmproxyRunner:
-    def __init__(self) -> None:
+    def __init__(self, *, debug_enabled: bool = False) -> None:
         self.output_dir = Path(resolve_app_path()) / "mitmproxy"
         self.pid_file = self.output_dir / "mitmproxy.pid"
         self.har_file = self.output_dir / "capture.har"
+        self.debug_enabled = debug_enabled
 
     def start(self) -> subprocess.Popen[str] | None:
         try:
@@ -24,32 +26,77 @@ class MitmproxyRunner:
             debug(f"❌ Unable to create output directory: {exc}")
             return None
 
-        cmd = [
-            sys.executable,
-            "-m",
-            "mitmproxy.tools.dump",
-            "--set",
-            f"hardump={self.har_file}",
-        ]
+        log_file = None
+        if self.debug_enabled:
+            try:
+                log_file = Path(resolve_log_path("mitmproxy.log")).open("a")
+            except OSError as exc:
+                debug(f"❌ Unable to open mitmproxy log file: {exc}")
+
+        if getattr(sys, "frozen", False):
+            cmd = [
+                sys.executable,
+                "--set",
+                f"hardump={self.har_file}",
+            ]
+            extra_env = {"FIT_MITM_LAUNCH": "1"}
+        else:
+            cmd = [
+                sys.executable,
+                "-c",
+                "from mitmproxy.tools.main import mitmdump; mitmdump()",
+                "--set",
+                f"hardump={self.har_file}",
+            ]
+            extra_env = None
         try:
+            stdout = subprocess.PIPE if log_file else subprocess.DEVNULL
+            stderr = subprocess.PIPE if log_file else subprocess.DEVNULL
+            env = os.environ.copy()
+            if extra_env:
+                env.update(extra_env)
             proc = subprocess.Popen(
                 cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=stdout,
+                stderr=stderr,
                 text=True,
+                bufsize=1,
+                env=env,
             )
         except FileNotFoundError:
+            if log_file:
+                log_file.close()
             debug("❌ Unable to launch mitmproxy module")
             return None
 
+        if log_file:
+            self._pipe_to_file(proc.stdout, log_file)
+            self._pipe_to_file(proc.stderr, log_file)
+
         time.sleep(0.2)
-        if proc.poll() is not None:
-            debug("❌ mitmproxy exited immediately after start")
+        exit_code = proc.poll()
+        if exit_code is not None:
+            if log_file:
+                log_file.write(f"mitmproxy exited immediately (code={exit_code})\n")
+                log_file.close()
+            debug(f"❌ mitmproxy exited immediately after start (code={exit_code})")
             return None
 
         self._write_pid(proc.pid)
         debug(f"✅ mitmproxy started (pid={proc.pid})")
         return proc
+
+    def _pipe_to_file(self, stream: subprocess.Popen[str] | None, log_file) -> None:
+        if stream is None:
+            return
+
+        def _worker() -> None:
+            for line in stream:
+                log_file.write(line)
+            log_file.flush()
+
+        thread = threading.Thread(target=_worker, daemon=True)
+        thread.start()
 
     def stop(self, proc: subprocess.Popen[str] | None) -> None:
         if not proc or proc.poll() is not None:
