@@ -8,11 +8,12 @@ import time
 from pathlib import Path
 
 from fit_common.core import debug
+from fit_common.core.paths import resolve_app_path
 
 
 class MitmproxyRunner:
-    def __init__(self, output_dir: Path):
-        self.output_dir = output_dir
+    def __init__(self) -> None:
+        self.output_dir = Path(resolve_app_path()) / "mitmproxy"
         self.pid_file = self.output_dir / "mitmproxy.pid"
         self.har_file = self.output_dir / "capture.har"
 

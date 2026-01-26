@@ -2,25 +2,22 @@ import argparse
 import atexit
 import os
 import sys
-from pathlib import Path
 
-from fit_common.core import DebugLevel, debug, get_platform, set_debug_level
-from fit_common.core.paths import resolve_log_path
+from fit_common.core import (
+    DebugLevel,
+    debug,
+    get_platform,
+    is_admin,
+    is_bundled,
+    set_debug_level,
+)
 
-from fit_bootstrap.bootstrap import Bootstrap
-from fit_bootstrap.macos.certificate import CertificateManager
+from fit_bootstrap.bootstrap import STAGE_ENV, STAGE_GUI, Bootstrap
 from fit_bootstrap.macos.proxy import MacProxyManager, ProxyState
-from fit_bootstrap.macos.mitmproxy_runner import MitmproxyRunner
-from fit_bootstrap.privilege import ensure_root_or_relaunch
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
 
-_STAGE_ENV = "FIT_BOOTSTRAP_STAGE"
-_STAGE_GUI = "gui"
-_OUTPUT_DIR = Path("/Users/zitelog/Developer/Workspace/fit-bootstrap/mimtproxy")
-_IS_BUNDLED = bool(getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"))
 
-
-def __log_bootstrap_result(result: BootstrapResult) -> None:
+def _log_bootstrap_result(result: BootstrapResult) -> None:
     if result.signal == BootstrapSignal.OK:
         debug("✅ Bootstrap completed")
     elif result.signal == BootstrapSignal.ADMIN_DENIED:
@@ -40,6 +37,7 @@ def parse_args() -> argparse.Namespace:
         help="Set the debug level (default: none)",
     )
     return parser.parse_args()
+
 
 def _run_gui() -> int:
     try:
@@ -70,7 +68,7 @@ def _run_gui() -> int:
     stop_button.setEnabled(False)
     proxy_manager: MacProxyManager | None = None
     proxy_state: ProxyState | None = None
-    mitm_runner = MitmproxyRunner(_OUTPUT_DIR)
+    bootstrap = Bootstrap()
 
     def _restore_proxy() -> None:
         nonlocal proxy_manager, proxy_state
@@ -120,7 +118,7 @@ def _run_gui() -> int:
     def _stop_mitm() -> None:
         stop_mitm_button.setEnabled(False)
         status_label.setText("Mitmproxy status: stopping...")
-        if mitm_runner.stop_by_pid():
+        if bootstrap.stop_mitmproxy():
             status_label.setText("Mitmproxy status: stopped")
         else:
             status_label.setText("Mitmproxy status: stop failed")
@@ -134,7 +132,7 @@ def _run_gui() -> int:
 
 
 def main() -> int:
-    if os.environ.get("FIT_ASKPASS_PYSIDE") == "1":
+    if get_platform() == "macos" and os.environ.get("FIT_ASKPASS_PYSIDE") == "1":
         from fit_bootstrap.macos.askpass_pyside import main as askpass_main
 
         return askpass_main()
@@ -147,52 +145,28 @@ def main() -> int:
             "verbose": DebugLevel.VERBOSE,
         }[args.debug]
     )
-    if args.debug != "none":
-        os.environ["FIT_BOOTSTRAP_DEBUG"] = "1"
-        os.environ["FIT_ASKPASS_LOG"] = resolve_log_path("askpass.log")
-
     debug(f"argv: {sys.argv}")
-    debug(f"bundled: {_IS_BUNDLED}")
+    debug(f"bundled: {is_bundled()}")
 
-    platform = get_platform()
-    if platform == "macos":
-        if os.environ.get(_STAGE_ENV) == _STAGE_GUI:
-            if os.geteuid() != 0:
-                debug("❌ GUI stage requires root privileges")
-                return 1
-            return _run_gui()
-
-        cert_manager = CertificateManager()
-        debug("PRE-FLIGHT: verifying CA certificate")
-        if cert_manager.add_cert() != 0:
-            debug("❌ Certificate installation failed")
+    if os.environ.get(STAGE_ENV) == STAGE_GUI:
+        debug(f"GUI stage admin: {is_admin()}")
+        if not is_admin():
+            debug("❌ GUI stage requires root privileges")
             return 1
+        return _run_gui()
 
-        debug("PRE-FLIGHT: starting mitmproxy")
-        mitm_runner = MitmproxyRunner(_OUTPUT_DIR)
-        mitm_process = mitm_runner.start()
-        if not mitm_process:
-            return 1
-        atexit.register(mitm_runner.stop, mitm_process)
+    if is_admin():
+        return _run_gui()
 
-        if os.geteuid() == 0:
-            return _run_gui()
+    preflight_result = Bootstrap()._dispatch(
+        on_signal=_log_bootstrap_result,
+        argv=list(sys.argv),
+        stage_env=STAGE_ENV,
+        stage_gui=STAGE_GUI,
+        debug_enabled=args.debug != "none",
+    )
 
-        debug("PRE-FLIGHT: relaunching as root via osascript")
-        relaunch_argv = list(sys.argv[1:] if _IS_BUNDLED else sys.argv)
-        relaunch_code = ensure_root_or_relaunch(
-            relaunch_argv,
-            prefer_osascript=True,
-            env_overrides={_STAGE_ENV: _STAGE_GUI},
-        )
-        if relaunch_code != 0:
-            debug("❌ Elevation failed")
-            mitm_runner.stop(mitm_process)
-        return relaunch_code
-
-    bootstrap = Bootstrap()
-    result = bootstrap._dispatch(on_signal=__log_bootstrap_result)
-    return result.code
+    return preflight_result.code
 
 
 if __name__ == "__main__":
