@@ -12,7 +12,10 @@ from fit_common.core import (
     set_debug_level,
 )
 
-from fit_bootstrap.bootstrap import STAGE_ENV, STAGE_GUI, Bootstrap
+from fit_bootstrap.app_lock import acquire_app_lock, release_app_lock
+from fit_bootstrap.bootstrap import Bootstrap
+from fit_bootstrap.mitmproxy_runner import MitmproxyRunner
+from fit_bootstrap.constants import STAGE_ENV, STAGE_GUI
 from fit_bootstrap.macos.proxy import MacProxyManager, ProxyState
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
 
@@ -64,11 +67,12 @@ def _run_gui() -> int:
     layout.addWidget(status_label)
     start_button = QPushButton("Start Proxy")
     stop_button = QPushButton("Stop Proxy")
+    start_mitm_button = QPushButton("Start mitmproxy")
     stop_mitm_button = QPushButton("Stop mitmproxy")
     stop_button.setEnabled(False)
     proxy_manager: MacProxyManager | None = None
     proxy_state: ProxyState | None = None
-    bootstrap = Bootstrap()
+    mitm_runner = MitmproxyRunner()
 
     def _restore_proxy() -> None:
         nonlocal proxy_manager, proxy_state
@@ -113,17 +117,29 @@ def _run_gui() -> int:
     stop_button.clicked.connect(_stop_proxy)
     layout.addWidget(start_button)
     layout.addWidget(stop_button)
+    layout.addWidget(start_mitm_button)
     layout.addWidget(stop_mitm_button)
+
+    def _start_mitm() -> None:
+        start_mitm_button.setEnabled(False)
+        status_label.setText("Mitmproxy status: starting...")
+        if mitm_runner.start():
+            status_label.setText("Mitmproxy status: started")
+            stop_mitm_button.setEnabled(True)
+        else:
+            status_label.setText("Mitmproxy status: start failed")
+            start_mitm_button.setEnabled(True)
 
     def _stop_mitm() -> None:
         stop_mitm_button.setEnabled(False)
         status_label.setText("Mitmproxy status: stopping...")
-        if bootstrap.stop_mitmproxy():
+        if mitm_runner.stop_by_pid():
             status_label.setText("Mitmproxy status: stopped")
         else:
             status_label.setText("Mitmproxy status: stop failed")
-        stop_mitm_button.setEnabled(True)
+        start_mitm_button.setEnabled(True)
 
+    start_mitm_button.clicked.connect(_start_mitm)
     stop_mitm_button.clicked.connect(_stop_mitm)
     window.setLayout(layout)
     window.resize(320, 120)
@@ -143,6 +159,8 @@ def main() -> int:
         return askpass_main()
 
     args = parse_args()
+    debug_enabled = args.debug != "none"
+
     set_debug_level(
         {
             "none": DebugLevel.NONE,
@@ -158,17 +176,17 @@ def main() -> int:
         if not is_admin():
             debug("❌ GUI stage requires root privileges")
             return 1
+        if not acquire_app_lock():
+            debug("❌ Another instance is already running")
+            return 1
+        atexit.register(release_app_lock)
         return _run_gui()
 
-    if is_admin():
-        return _run_gui()
-
-    preflight_result = Bootstrap()._dispatch(
+    preflight_result = Bootstrap(debug_enabled=debug_enabled)._dispatch(
         on_signal=_log_bootstrap_result,
         argv=list(sys.argv),
         stage_env=STAGE_ENV,
         stage_gui=STAGE_GUI,
-        debug_enabled=args.debug != "none",
     )
 
     return preflight_result.code

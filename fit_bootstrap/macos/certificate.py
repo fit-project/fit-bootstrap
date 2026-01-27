@@ -6,8 +6,9 @@ import sys
 from importlib.resources import files
 from pathlib import Path
 
-from fit_common.core import debug
-from fit_common.core.paths import resolve_log_path
+from fit_common.core import debug, is_admin
+
+from fit_bootstrap.constants import FIT_DEBUG_ENABLED, FIT_LOG_APP_PATH
 
 
 class CertificateManager:
@@ -68,9 +69,7 @@ class CertificateManager:
             debug(f"Error searching for certificate: {e}")
             return False
 
-    def add_cert(
-        self, keychain: str | None = None, *, debug_enabled: bool = False
-    ) -> int:
+    def add_cert(self, keychain: str | None = None) -> int:
         if not self.cert_path.exists():
             debug(f"❌ Certificate not found: {self.cert_path}")
             debug("Start mitmproxy once to generate it.")
@@ -105,13 +104,23 @@ class CertificateManager:
             ]
             askpass = Path(__file__).parent / "askpass.sh"
             env = os.environ.copy()
-            if askpass.exists():
+            if is_admin():
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                    check=False,
+                )
+            elif askpass.exists():
                 env["SUDO_ASKPASS"] = str(askpass)
                 env["FIT_ASKPASS_MODE"] = "pyside"
                 env["FIT_ASKPASS_PYTHON"] = sys.executable
-                if debug_enabled:
+                if os.environ.get(FIT_DEBUG_ENABLED) == "1":
                     env["FIT_BOOTSTRAP_DEBUG"] = "1"
-                    env["FIT_ASKPASS_LOG"] = resolve_log_path("macos-askpass.log")
+                    env["FIT_ASKPASS_LOG"] = (
+                        Path(os.environ.get(FIT_LOG_APP_PATH)) / "macos-askpass.log"
+                    )
                     env["FIT_ASKPASS_DEBUG"] = "1"
                 env["DISPLAY"] = env.get("DISPLAY", ":0")
                 result = subprocess.run(

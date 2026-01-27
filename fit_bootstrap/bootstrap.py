@@ -1,20 +1,45 @@
-import atexit
+import os
 import sys
 from pathlib import Path
 from typing import Optional
 
 from fit_common.core import debug, get_platform, is_bundled
+from fit_common.core.paths import resolve_app_path
 
+from fit_bootstrap.constants import (
+    FIT_DEBUG_ENABLED,
+    FIT_DNS,
+    FIT_HOST_IP,
+    FIT_LOG_APP_PATH,
+    FIT_OS_TYPE,
+    FIT_OS_VERSION,
+    FIT_USER_APP_PATH,
+    FIT_USERNAME,
+)
+from fit_bootstrap.context import AcquisitionContext
 from fit_bootstrap.macos.bootstrap import MacBootstrap
-from fit_bootstrap.mitmproxy_runner import MitmproxyRunner
 from fit_bootstrap.privilege import ensure_root_or_relaunch
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal, SignalHandler
 
-STAGE_ENV = "FIT_BOOTSTRAP_STAGE"
-STAGE_GUI = "gui"
-
 
 class Bootstrap:
+    def __init__(
+        self,
+        debug_enabled: bool = False,
+    ) -> None:
+        os.environ[FIT_DEBUG_ENABLED] = "1" if debug_enabled else "0"
+        user_app_path = Path(resolve_app_path())
+        log_dir = user_app_path / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        os.environ[FIT_USER_APP_PATH] = str(user_app_path)
+        os.environ[FIT_LOG_APP_PATH] = str(log_dir)
+        self.acquisition_context = AcquisitionContext.collect()
+        os.environ[FIT_OS_TYPE] = self.acquisition_context.os_type
+        os.environ[FIT_OS_VERSION] = self.acquisition_context.os_version
+        os.environ[FIT_USERNAME] = self.acquisition_context.username
+        os.environ[FIT_HOST_IP] = self.acquisition_context.host_ip
+        os.environ[FIT_DNS] = ",".join(self.acquisition_context.dns_servers)
+
     def _dispatch(
         self,
         on_signal: Optional[SignalHandler] = None,
@@ -22,7 +47,6 @@ class Bootstrap:
         argv: list[str] | None = None,
         stage_env: str | None = None,
         stage_gui: str | None = None,
-        debug_enabled: bool = False,
     ) -> BootstrapResult:
         if get_platform() == "macos":
             if argv is None or stage_env is None or stage_gui is None:
@@ -32,44 +56,35 @@ class Bootstrap:
                     message="Missing macOS bootstrap parameters",
                 )
             else:
-                cert_result = MacBootstrap().run(debug_enabled=debug_enabled)
+                cert_result = MacBootstrap().run()
                 if cert_result.code != 0:
                     result = cert_result
                 else:
-                    debug("PRE-FLIGHT: starting mitmproxy")
-                    mitm_runner = MitmproxyRunner(debug_enabled=debug_enabled)
-                    mitm_process = mitm_runner.start()
-                    if not mitm_process:
-                        result = BootstrapResult(
-                            code=1,
-                            signal=BootstrapSignal.ERROR,
-                            message="mitmproxy_start_failed",
-                        )
+                    if is_bundled():
+                        relaunch_argv = list(argv[1:])
                     else:
-                        atexit.register(mitm_runner.stop, mitm_process)
-                        if is_bundled():
-                            relaunch_argv = list(argv[1:])
-                        else:
-                            relaunch_argv = list(argv)
-                            if relaunch_argv:
-                                relaunch_argv[0] = str(Path(relaunch_argv[0]).resolve())
-                        relaunch_code = ensure_root_or_relaunch(
-                            relaunch_argv,
-                            prefer_osascript=True,
-                            env_overrides={stage_env: stage_gui},
-                        )
-                        if relaunch_code != 0:
-                            debug("❌ Elevation failed")
-                            mitm_runner.stop(mitm_process)
-                        result = BootstrapResult(
-                            code=relaunch_code,
-                            signal=(
-                                BootstrapSignal.OK
-                                if relaunch_code == 0
-                                else BootstrapSignal.ERROR
-                            ),
-                            message=None if relaunch_code == 0 else "Elevation failed",
-                        )
+                        relaunch_argv = list(argv)
+                        if relaunch_argv:
+                            relaunch_argv[0] = str(Path(relaunch_argv[0]).resolve())
+                    relaunch_code = ensure_root_or_relaunch(
+                        relaunch_argv,
+                        prefer_osascript=True,
+                        env_overrides={
+                            stage_env: stage_gui,
+                            FIT_USER_APP_PATH: os.environ[FIT_USER_APP_PATH],
+                        },
+                    )
+                    if relaunch_code != 0:
+                        debug("❌ Elevation failed")
+                    result = BootstrapResult(
+                        code=relaunch_code,
+                        signal=(
+                            BootstrapSignal.OK
+                            if relaunch_code == 0
+                            else BootstrapSignal.ERROR
+                        ),
+                        message=None if relaunch_code == 0 else "Elevation failed",
+                    )
         elif get_platform() == "win":
             result = BootstrapResult(
                 code=1,
@@ -92,12 +107,3 @@ class Bootstrap:
         if on_signal is not None:
             on_signal(result)
         return result
-
-    def stop_mitmproxy(self) -> bool:
-        runner = MitmproxyRunner()
-        return runner.stop_by_pid()
-
-    def start_mitmproxy(self) -> bool:
-        runner = MitmproxyRunner()
-        proc = runner.start()
-        return proc is not None
