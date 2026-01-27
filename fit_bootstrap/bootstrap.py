@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 from fit_common.core import debug, get_platform, is_bundled
-from fit_common.core.paths import resolve_app_path
+from fit_common.core.paths import resolve_app_path, resolve_log_path
 
 from fit_bootstrap.constants import (
     FIT_DEBUG_ENABLED,
@@ -28,11 +28,8 @@ class Bootstrap:
         debug_enabled: bool = False,
     ) -> None:
         os.environ[FIT_DEBUG_ENABLED] = "1" if debug_enabled else "0"
-        user_app_path = Path(resolve_app_path())
-        log_dir = user_app_path / "logs"
-        log_dir.mkdir(parents=True, exist_ok=True)
-        os.environ[FIT_USER_APP_PATH] = str(user_app_path)
-        os.environ[FIT_LOG_APP_PATH] = str(log_dir)
+        os.environ[FIT_USER_APP_PATH] = resolve_app_path()
+        os.environ[FIT_LOG_APP_PATH] = resolve_log_path()
         self.acquisition_context = AcquisitionContext.collect()
         os.environ[FIT_OS_TYPE] = self.acquisition_context.os_type
         os.environ[FIT_OS_VERSION] = self.acquisition_context.os_version
