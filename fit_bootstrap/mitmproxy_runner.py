@@ -18,7 +18,7 @@ from fit_bootstrap.constants import (
 
 
 class MitmproxyRunner:
-    def __init__(self) -> None:
+    def __init__(self, _parent=None) -> None:
         base_path = os.environ.get(FIT_USER_APP_PATH)
         if not base_path:
             debug("❌ FIT_USER_APP_PATH not set; cannot start mitmproxy")
@@ -29,6 +29,7 @@ class MitmproxyRunner:
         self.output_dir = Path(base_path) / "mitmproxy"
         self.pid_file = self.output_dir / "mitmproxy.pid"
         self.har_file = self.output_dir / "capture.har"
+        self.control_file = self.output_dir / "capture.control"
 
     def start(self) -> subprocess.Popen[str] | None:
         if self.output_dir is None or self.pid_file is None or self.har_file is None:
@@ -46,8 +47,9 @@ class MitmproxyRunner:
         if existing_pid:
             try:
                 os.kill(existing_pid, 0)
-                debug(f"❌ mitmproxy already running (pid={existing_pid})")
-                return None
+                debug(f"ℹ️ mitmproxy already running (pid={existing_pid}), killing it")
+                os.kill(existing_pid, signal.SIGKILL)
+                self._clear_pid()
             except ProcessLookupError:
                 self._clear_pid()
 
@@ -76,6 +78,8 @@ class MitmproxyRunner:
 
         cmd = [
             *base_cmd,
+            "-s",
+            str(Path(__file__).parent / "mitmproxy_addons" / "fit_capture.py"),
             "--set",
             f"hardump={self.har_file}",
         ]
@@ -88,6 +92,8 @@ class MitmproxyRunner:
             env = os.environ.copy()
             if extra_env:
                 env.update(extra_env)
+            env["FIT_CAPTURE_CONTROL"] = str(self.control_file)
+            env["FIT_CAPTURE_HAR"] = str(self.har_file)
             proc = subprocess.Popen(
                 cmd,
                 stdout=stdout,
@@ -117,6 +123,7 @@ class MitmproxyRunner:
 
         self._write_pid(proc.pid)
         debug(f"✅ mitmproxy started (pid={proc.pid})")
+        self._write_control("stop")
         return proc
 
     def _pipe_to_file(self, stream: subprocess.Popen[str] | None, log_file) -> None:
@@ -148,33 +155,19 @@ class MitmproxyRunner:
             return False
         try:
             os.kill(pid, signal.SIGINT)
-            debug("Waiting for mitmproxy to handle SIGINT...")
-            for _ in range(12):
-                time.sleep(0.25)
-                try:
-                    os.kill(pid, 0)
-                except ProcessLookupError:
-                    self._clear_pid()
-                    if self.har_file:
-                        debug(f"HAR exists: {self.har_file.exists()}")
-                    return True
-            debug("mitmproxy still running after SIGINT; sending SIGTERM")
-            os.kill(pid, signal.SIGTERM)
-            for _ in range(12):
-                time.sleep(0.25)
-                try:
-                    os.kill(pid, 0)
-                except ProcessLookupError:
-                    self._clear_pid()
-                    if self.har_file:
-                        debug(f"HAR exists: {self.har_file.exists()}")
-                    return True
-            debug("mitmproxy still running after SIGTERM; forcing SIGKILL")
-            os.kill(pid, signal.SIGKILL)
+            debug(f"Sent SIGINT to mitmproxy pid {pid}")
+            os.kill(pid, 0)
         except ProcessLookupError:
             self._clear_pid()
             debug("ℹ️ mitmproxy process already stopped")
             return True
+        except OSError:
+            try:
+                os.kill(pid, signal.SIGKILL)
+                debug(f"Sent SIGKILL to mitmproxy pid {pid}")
+            except OSError as exc:
+                debug(f"❌ Unable to stop mitmproxy: {exc}")
+                return False
         except OSError as exc:
             debug(f"❌ Unable to stop mitmproxy: {exc}")
             return False
@@ -182,6 +175,12 @@ class MitmproxyRunner:
         if self.har_file:
             debug(f"HAR exists: {self.har_file.exists()}")
         return True
+
+    def start_capture(self) -> bool:
+        return self._write_control("start")
+
+    def stop_capture(self) -> bool:
+        return self._write_control("stop")
 
     def _write_pid(self, pid: int) -> None:
         try:
@@ -206,3 +205,15 @@ class MitmproxyRunner:
             self.pid_file.unlink()
         except OSError:
             pass
+
+    def _write_control(self, command: str) -> bool:
+        try:
+            if self.control_file is None:
+                return False
+            self.control_file.parent.mkdir(parents=True, exist_ok=True)
+            self.control_file.write_text(command)
+            debug(f"Capture control: {command}")
+            return True
+        except OSError as exc:
+            debug(f"❌ Unable to write capture control: {exc}")
+            return False

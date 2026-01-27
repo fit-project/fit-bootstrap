@@ -67,12 +67,14 @@ def _run_gui() -> int:
     layout.addWidget(status_label)
     start_button = QPushButton("Start Proxy")
     stop_button = QPushButton("Stop Proxy")
-    start_mitm_button = QPushButton("Start mitmproxy")
-    stop_mitm_button = QPushButton("Stop mitmproxy")
+    start_capture_button = QPushButton("Start Capture")
+    stop_capture_button = QPushButton("Stop Capture")
     stop_button.setEnabled(False)
+    start_capture_button.setEnabled(False)
+    stop_capture_button.setEnabled(False)
     proxy_manager: MacProxyManager | None = None
     proxy_state: ProxyState | None = None
-    mitm_runner = MitmproxyRunner()
+    mitm_runner = MitmproxyRunner(window)
 
     def _restore_proxy() -> None:
         nonlocal proxy_manager, proxy_state
@@ -117,30 +119,39 @@ def _run_gui() -> int:
     stop_button.clicked.connect(_stop_proxy)
     layout.addWidget(start_button)
     layout.addWidget(stop_button)
-    layout.addWidget(start_mitm_button)
-    layout.addWidget(stop_mitm_button)
+    layout.addWidget(start_capture_button)
+    layout.addWidget(stop_capture_button)
 
-    def _start_mitm() -> None:
-        start_mitm_button.setEnabled(False)
-        status_label.setText("Mitmproxy status: starting...")
-        if mitm_runner.start():
-            status_label.setText("Mitmproxy status: started")
-            stop_mitm_button.setEnabled(True)
+    def _start_capture() -> None:
+        start_capture_button.setEnabled(False)
+        status_label.setText("Capture status: starting...")
+        if mitm_runner.start_capture():
+            status_label.setText("Capture status: active")
+            stop_capture_button.setEnabled(True)
         else:
-            status_label.setText("Mitmproxy status: start failed")
-            start_mitm_button.setEnabled(True)
+            status_label.setText("Capture status: start failed")
+            start_capture_button.setEnabled(True)
 
-    def _stop_mitm() -> None:
-        stop_mitm_button.setEnabled(False)
-        status_label.setText("Mitmproxy status: stopping...")
-        if mitm_runner.stop_by_pid():
-            status_label.setText("Mitmproxy status: stopped")
+    def _stop_capture() -> None:
+        stop_capture_button.setEnabled(False)
+        status_label.setText("Capture status: stopping...")
+        if mitm_runner.stop_capture():
+            status_label.setText("Capture status: stopped")
+            start_capture_button.setEnabled(True)
         else:
-            status_label.setText("Mitmproxy status: stop failed")
-        start_mitm_button.setEnabled(True)
+            status_label.setText("Capture status: stop failed")
+            stop_capture_button.setEnabled(True)
 
-    start_mitm_button.clicked.connect(_start_mitm)
-    stop_mitm_button.clicked.connect(_stop_mitm)
+    start_capture_button.clicked.connect(_start_capture)
+    stop_capture_button.clicked.connect(_stop_capture)
+    start_capture_button.setEnabled(True)
+
+    def _on_close(event) -> None:
+        mitm_runner.stop_capture()
+        mitm_runner.stop_by_pid()
+        event.accept()
+
+    window.closeEvent = _on_close
     window.setLayout(layout)
     window.resize(320, 120)
     window.show()
@@ -182,13 +193,21 @@ def main() -> int:
         atexit.register(release_app_lock)
         return _run_gui()
 
-    preflight_result = Bootstrap(debug_enabled=debug_enabled)._dispatch(
+    bootstrap = Bootstrap(debug_enabled=debug_enabled)
+    mitm_runner = MitmproxyRunner()
+    if not mitm_runner.start():
+        debug("❌ mitmproxy start failed")
+        return 1
+
+    preflight_result = bootstrap._dispatch(
         on_signal=_log_bootstrap_result,
         argv=list(sys.argv),
         stage_env=STAGE_ENV,
         stage_gui=STAGE_GUI,
     )
 
+    if preflight_result.code != 0:
+        mitm_runner.stop_by_pid()
     return preflight_result.code
 
 
