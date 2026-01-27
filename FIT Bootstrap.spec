@@ -10,6 +10,7 @@ hiddenimports += ['fit_bootstrap.macos.askpass_pyside']
 datas = collect_data_files('fit_assets')
 datas += collect_data_files('mitmproxy')
 datas += [('fit_bootstrap/macos/askpass.sh', 'fit_bootstrap/macos')]
+datas += [('fit_bootstrap/mitmproxy_addons/fit_capture.py', 'fit_bootstrap/mitmproxy_addons')]
 
 
 a = Analysis(

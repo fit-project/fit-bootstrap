@@ -42,6 +42,7 @@ class MitmproxyRunner:
         except OSError as exc:
             debug(f"❌ Unable to create output directory: {exc}")
             return None
+        self._reset_capture_files()
 
         existing_pid = self._read_pid()
         if existing_pid:
@@ -60,7 +61,10 @@ class MitmproxyRunner:
                 if not log_base:
                     debug("❌ FIT_LOG_APP_PATH not set; cannot open mitmproxy log")
                     return None
-                log_file = (Path(log_base) / "mitmproxy.log").open("a")
+                log_path = Path(log_base) / "mitmproxy.log"
+                if log_path.exists():
+                    log_path.unlink()
+                log_file = log_path.open("a")
             except OSError as exc:
                 debug(f"❌ Unable to open mitmproxy log file: {exc}")
 
@@ -217,3 +221,17 @@ class MitmproxyRunner:
         except OSError as exc:
             debug(f"❌ Unable to write capture control: {exc}")
             return False
+
+    def _reset_capture_files(self) -> None:
+        if self.har_file is not None:
+            try:
+                if self.har_file.exists():
+                    self.har_file.unlink()
+            except OSError as exc:
+                debug(f"❌ Unable to reset capture.har: {exc}")
+        if self.control_file is not None:
+            try:
+                if self.control_file.exists():
+                    self.control_file.unlink()
+            except OSError as exc:
+                debug(f"❌ Unable to reset capture.control: {exc}")
