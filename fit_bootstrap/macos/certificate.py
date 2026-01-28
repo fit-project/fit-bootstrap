@@ -69,6 +69,55 @@ class CertificateManager:
             debug(f"Error searching for certificate: {e}")
             return False
 
+    def __remove_cert(self, keychain: str, env: dict, askpass: Path) -> None:
+        if not self.cert_sha1:
+            return
+        if not self.__cert_exists_in_keychain(keychain):
+            return
+        cmd = [
+            "security",
+            "delete-certificate",
+            "-Z",
+            self.cert_sha1,
+            keychain,
+        ]
+        try:
+            if is_admin():
+                subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                    check=False,
+                )
+            elif askpass.exists():
+                env["SUDO_ASKPASS"] = str(askpass)
+                env["FIT_ASKPASS_MODE"] = "pyside"
+                env["FIT_ASKPASS_PYTHON"] = sys.executable
+                if os.environ.get(FIT_DEBUG_ENABLED) == "1":
+                    env["FIT_BOOTSTRAP_DEBUG"] = "1"
+                    env["FIT_ASKPASS_LOG"] = (
+                        Path(os.environ.get(FIT_LOG_APP_PATH)) / "macos-askpass.log"
+                    )
+                    env["FIT_ASKPASS_DEBUG"] = "1"
+                env["DISPLAY"] = env.get("DISPLAY", ":0")
+                subprocess.run(
+                    ["sudo", "-A", *cmd],
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                    check=False,
+                )
+            else:
+                subprocess.run(
+                    ["sudo", *cmd],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+        except subprocess.CalledProcessError as e:
+            debug(f"❌ Error removing certificate: {e}")
+
     def add_cert(self, keychain: str | None = None) -> int:
         if not self.cert_path.exists():
             debug(f"❌ Certificate not found: {self.cert_path}")
@@ -146,6 +195,7 @@ class CertificateManager:
                 )
                 if not duplicate:
                     debug(f"❌ Error during installation: {stderr or stdout}")
+                    self.__remove_cert(keychain_path, env, askpass)
                     return 1
             debug("✅ Certificate installed and trusted.")
             return 0
