@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>multipurpose_dialog</class>
- <widget class="QWidget" name="multipurpose_dialog">
+ <class>askpass_dialog</class>
+ <widget class="QWidget" name="askpass_dialog">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -189,7 +189,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="left_button">
+        <widget class="QPushButton" name="cancel_button">
          <property name="enabled">
           <bool>true</bool>
          </property>
@@ -227,7 +227,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="right_button">
+        <widget class="QPushButton" name="ok_button">
          <property name="enabled">
           <bool>true</bool>
          </property>

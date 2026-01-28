@@ -1,6 +1,8 @@
 #!/bin/sh
 
 pw=""
+script_dir=$(cd "$(dirname "$0")" && pwd)
+repo_root=$(cd "$script_dir/../.." && pwd)
 if [ -n "$FIT_ASKPASS_LOG" ]; then
   log="$FIT_ASKPASS_LOG"
 else
@@ -18,10 +20,10 @@ if [ "$FIT_ASKPASS_MODE" = "pyside" ] && [ -n "$FIT_ASKPASS_PYTHON" ]; then
   fi
   case "$FIT_ASKPASS_PYTHON" in
     *".app/Contents/MacOS/"*)
-      pw=$(FIT_ASKPASS_PYSIDE=1 "$FIT_ASKPASS_PYTHON" 2>>"$log")
+      pw=$(FIT_ASKPASS_DIALOG=1 "$FIT_ASKPASS_PYTHON" 2>>"$log")
       ;;
     *)
-      pw=$("$FIT_ASKPASS_PYTHON" -m fit_bootstrap.macos.askpass_pyside 2>>"$log")
+      pw=$(PYTHONPATH="$repo_root" "$FIT_ASKPASS_PYTHON" -m fit_bootstrap.macos.askpass_dialog 2>>"$log")
       ;;
   esac
   if [ "$log_enabled" -eq 1 ]; then

@@ -14,9 +14,9 @@ from fit_common.core import (
 
 from fit_bootstrap.app_lock import acquire_app_lock, release_app_lock
 from fit_bootstrap.bootstrap import Bootstrap
-from fit_bootstrap.mitmproxy_runner import MitmproxyRunner
 from fit_bootstrap.constants import STAGE_ENV, STAGE_GUI
 from fit_bootstrap.macos.proxy import MacProxyManager, ProxyState
+from fit_bootstrap.mitmproxy_runner import MitmproxyRunner
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
 
 
@@ -164,8 +164,8 @@ def main() -> int:
 
         return mitmdump()
 
-    if get_platform() == "macos" and os.environ.get("FIT_ASKPASS_PYSIDE") == "1":
-        from fit_bootstrap.macos.askpass_pyside import main as askpass_main
+    if get_platform() == "macos" and os.environ.get("FIT_ASKPASS_DIALOG") == "1":
+        from fit_bootstrap.macos.askpass_dialog import main as askpass_main
 
         return askpass_main()
 
