@@ -115,6 +115,7 @@ class CertificateManager:
                     text=True,
                     check=False,
                 )
+            debug("ℹ️ Certificate rollback done.")
         except subprocess.CalledProcessError as e:
             debug(f"❌ Error removing certificate: {e}")
 
