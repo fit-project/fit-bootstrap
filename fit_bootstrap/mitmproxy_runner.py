@@ -8,7 +8,7 @@ import threading
 import time
 from pathlib import Path
 
-from fit_common.core import debug
+from fit_common.core import debug, get_context
 
 from fit_bootstrap.constants import (
     FIT_DEBUG_ENABLED,
@@ -21,7 +21,10 @@ class MitmproxyRunner:
     def __init__(self, _parent=None) -> None:
         base_path = os.environ.get(FIT_USER_APP_PATH)
         if not base_path:
-            debug("❌ FIT_USER_APP_PATH not set; cannot start mitmproxy")
+            debug(
+                "❌ FIT_USER_APP_PATH not set; cannot start mitmproxy",
+                context=get_context(self),
+            )
             self.output_dir = None
             self.pid_file = None
             self.har_file = None
@@ -35,12 +38,18 @@ class MitmproxyRunner:
         if self.output_dir is None or self.pid_file is None or self.har_file is None:
             return None
 
-        debug(f"FIT_DEBUG_ENABLED={os.environ.get(FIT_DEBUG_ENABLED)}")
+        debug(
+            f"ℹ️ FIT_DEBUG_ENABLED={os.environ.get(FIT_DEBUG_ENABLED)}",
+            context=get_context(self),
+        )
 
         try:
             self.output_dir.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
-            debug(f"❌ Unable to create output directory: {exc}")
+            debug(
+                f"❌ Unable to create output directory: {exc}",
+                context=get_context(self),
+            )
             return None
         self._reset_capture_files()
 
@@ -48,7 +57,10 @@ class MitmproxyRunner:
         if existing_pid:
             try:
                 os.kill(existing_pid, 0)
-                debug(f"ℹ️ mitmproxy already running (pid={existing_pid}), killing it")
+                debug(
+                    f"ℹ️ mitmproxy already running (pid={existing_pid}), killing it",
+                    context=get_context(self),
+                )
                 os.kill(existing_pid, signal.SIGKILL)
                 self._clear_pid()
             except ProcessLookupError:
@@ -59,14 +71,20 @@ class MitmproxyRunner:
             try:
                 log_base = os.environ.get(FIT_LOG_APP_PATH)
                 if not log_base:
-                    debug("❌ FIT_LOG_APP_PATH not set; cannot open mitmproxy log")
+                    debug(
+                        "❌ FIT_LOG_APP_PATH not set; cannot open mitmproxy log",
+                        context=get_context(self),
+                    )
                     return None
                 log_path = Path(log_base) / "mitmproxy.log"
                 if log_path.exists():
                     log_path.unlink()
                 log_file = log_path.open("a")
             except OSError as exc:
-                debug(f"❌ Unable to open mitmproxy log file: {exc}")
+                debug(
+                    f"❌ Unable to open mitmproxy log file: {exc}",
+                    context=get_context(self),
+                )
 
         base_cmd: list[str]
         extra_env = None
@@ -89,7 +107,7 @@ class MitmproxyRunner:
         ]
         if os.environ.get(FIT_DEBUG_ENABLED) == "1":
             cmd += ["--set", "termlog_verbosity=debug"]
-        debug(f"mitm cmd: {cmd}")
+        debug(f"ℹ️ mitm cmd: {cmd}", context=get_context(self))
         try:
             stdout = subprocess.PIPE if log_file else subprocess.DEVNULL
             stderr = subprocess.PIPE if log_file else subprocess.DEVNULL
@@ -109,7 +127,7 @@ class MitmproxyRunner:
         except FileNotFoundError:
             if log_file:
                 log_file.close()
-            debug("❌ Unable to launch mitmproxy module")
+            debug("❌ Unable to launch mitmproxy module", context=get_context(self))
             return None
 
         if log_file:
@@ -122,11 +140,14 @@ class MitmproxyRunner:
             if log_file:
                 log_file.write(f"mitmproxy exited immediately (code={exit_code})\n")
                 log_file.close()
-            debug(f"❌ mitmproxy exited immediately after start (code={exit_code})")
+            debug(
+                f"❌ mitmproxy exited immediately after start (code={exit_code})",
+                context=get_context(self),
+            )
             return None
 
         self._write_pid(proc.pid)
-        debug(f"✅ mitmproxy started (pid={proc.pid})")
+        debug(f"✅ mitmproxy started (pid={proc.pid})", context=get_context(self))
         self._write_control("stop")
         return proc
 
@@ -155,29 +176,31 @@ class MitmproxyRunner:
     def stop_by_pid(self) -> bool:
         pid = self._read_pid()
         if not pid:
-            debug("❌ mitmproxy pid not found")
+            debug("❌ mitmproxy pid not found", context=get_context(self))
             return False
         try:
             os.kill(pid, signal.SIGINT)
-            debug(f"Sent SIGINT to mitmproxy pid {pid}")
+            debug(f"Sent SIGINT to mitmproxy pid {pid}", context=get_context(self))
             os.kill(pid, 0)
         except ProcessLookupError:
             self._clear_pid()
-            debug("ℹ️ mitmproxy process already stopped")
+            debug("ℹ️ mitmproxy process already stopped", context=get_context(self))
             return True
         except OSError:
             try:
                 os.kill(pid, signal.SIGKILL)
-                debug(f"Sent SIGKILL to mitmproxy pid {pid}")
+                debug(
+                    f"ℹ️ Sent SIGKILL to mitmproxy pid {pid}", context=get_context(self)
+                )
             except OSError as exc:
-                debug(f"❌ Unable to stop mitmproxy: {exc}")
+                debug(f"❌ Unable to stop mitmproxy: {exc}", context=get_context(self))
                 return False
         except OSError as exc:
-            debug(f"❌ Unable to stop mitmproxy: {exc}")
+            debug(f"❌ Unable to stop mitmproxy: {exc}", context=get_context(self))
             return False
         self._clear_pid()
         if self.har_file:
-            debug(f"HAR exists: {self.har_file.exists()}")
+            debug(f"ℹ️ HAR exists: {self.har_file.exists()}", context=get_context(self))
         return True
 
     def start_capture(self) -> bool:
@@ -192,7 +215,10 @@ class MitmproxyRunner:
                 return
             self.pid_file.write_text(str(pid))
         except OSError as exc:
-            debug(f"❌ Unable to write mitmproxy pid file: {exc}")
+            debug(
+                f"❌ Unable to write mitmproxy pid file: {exc}",
+                context=get_context(self),
+            )
 
     def _read_pid(self) -> int | None:
         try:
@@ -216,10 +242,12 @@ class MitmproxyRunner:
                 return False
             self.control_file.parent.mkdir(parents=True, exist_ok=True)
             self.control_file.write_text(command)
-            debug(f"Capture control: {command}")
+            debug(f"ℹ️ Capture control: {command}", context=get_context(self))
             return True
         except OSError as exc:
-            debug(f"❌ Unable to write capture control: {exc}")
+            debug(
+                f"❌ Unable to write capture control: {exc}", context=get_context(self)
+            )
             return False
 
     def _reset_capture_files(self) -> None:
@@ -228,10 +256,15 @@ class MitmproxyRunner:
                 if self.har_file.exists():
                     self.har_file.unlink()
             except OSError as exc:
-                debug(f"❌ Unable to reset capture.har: {exc}")
+                debug(
+                    f"❌ Unable to reset capture.har: {exc}", context=get_context(self)
+                )
         if self.control_file is not None:
             try:
                 if self.control_file.exists():
                     self.control_file.unlink()
             except OSError as exc:
-                debug(f"❌ Unable to reset capture.control: {exc}")
+                debug(
+                    f"❌ Unable to reset capture.control: {exc}",
+                    context=get_context(self),
+                )

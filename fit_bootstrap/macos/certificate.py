@@ -6,7 +6,7 @@ import sys
 from importlib.resources import files
 from pathlib import Path
 
-from fit_common.core import debug, is_admin
+from fit_common.core import debug, get_context, is_admin
 
 from fit_bootstrap.constants import FIT_DEBUG_ENABLED, FIT_LOG_APP_PATH
 
@@ -15,7 +15,7 @@ class CertificateManager:
     CERT_PATH = Path(
         str(files("fit_assets").joinpath("mitmproxy/mitmproxy-ca-cert.pem"))
     )
-    debug(f"Certificate path: {CERT_PATH}")
+    debug(f"ℹ️ Certificate path: {CERT_PATH}", context="macos.certificate")
     KEYCHAIN = "/Library/Keychains/System.keychain"
 
     def __init__(self):
@@ -25,7 +25,9 @@ class CertificateManager:
 
     def __compute_sha1(self) -> str | None:
         if not self.cert_path.exists():
-            debug(f"Certificate not found: {self.cert_path}")
+            debug(
+                f"ℹ️ Certificate not found: {self.cert_path}", context=get_context(self)
+            )
             return None
 
         try:
@@ -46,10 +48,13 @@ class CertificateManager:
             fingerprint = result.stdout.split("=")[1].replace(":", "")
             return fingerprint.strip()
         except FileNotFoundError:
-            debug("❌ OpenSSL not found. Install via: brew install openssl")
+            debug(
+                "❌ OpenSSL not found. Install via: brew install openssl",
+                context=get_context(self),
+            )
             return None
         except (subprocess.CalledProcessError, IndexError) as e:
-            debug(f"Error computing SHA1: {e}")
+            debug(f"❌ Error computing SHA1: {e}", context=get_context(self))
             return None
 
     def __cert_exists_in_keychain(self, keychain: str | None = None) -> bool:
@@ -66,7 +71,7 @@ class CertificateManager:
 
             return self.cert_sha1 in result.stdout
         except subprocess.CalledProcessError as e:
-            debug(f"Error searching for certificate: {e}")
+            debug(f"❌ Error searching for certificate: {e}", context=get_context(self))
             return False
 
     def __remove_cert(self, keychain: str, env: dict, askpass: Path) -> None:
@@ -115,27 +120,30 @@ class CertificateManager:
                     text=True,
                     check=False,
                 )
-            debug("ℹ️ Certificate rollback done.")
+            debug("ℹ️ Certificate rollback done.", context=get_context(self))
         except subprocess.CalledProcessError as e:
-            debug(f"❌ Error removing certificate: {e}")
+            debug(f"❌ Error removing certificate: {e}", context=get_context(self))
 
     def add_cert(self, keychain: str | None = None) -> int:
         if not self.cert_path.exists():
-            debug(f"❌ Certificate not found: {self.cert_path}")
-            debug("Start mitmproxy once to generate it.")
+            debug(
+                f"❌ Certificate not found: {self.cert_path}", context=get_context(self)
+            )
+            debug("❌ Start mitmproxy once to generate it.", context=get_context(self))
             return 1
 
         if not self.cert_sha1:
-            debug("❌ Unable to compute certificate SHA1")
+            debug("❌ Unable to compute certificate SHA1", context=get_context(self))
             return 1
 
         keychain_path = keychain or self.keychain
         debug(
-            f"➕ Adding mitmproxy certificate (SHA1={self.cert_sha1}) to {keychain_path}"
+            f"➕ Adding mitmproxy certificate (SHA1={self.cert_sha1}) to {keychain_path}",
+            context=get_context(self),
         )
 
         if self.__cert_exists_in_keychain(keychain_path):
-            debug("ℹ️ Certificate already present, skipping.")
+            debug("ℹ️ Certificate already present, skipping.", context=get_context(self))
             return 0
 
         try:
@@ -195,15 +203,24 @@ class CertificateManager:
                     or "already exists" in stdout.lower()
                 )
                 if not duplicate:
-                    debug(f"❌ Error during installation: {stderr or stdout}")
+                    debug(
+                        f"❌ Error during installation: {stderr or stdout}",
+                        context=get_context(self),
+                    )
                     self.__remove_cert(keychain_path, env, askpass)
                     return 1
-            debug("✅ Certificate installed and trusted.")
+            debug("✅ Certificate installed and trusted.", context=get_context(self))
             return 0
         except subprocess.CalledProcessError as e:
-            debug(f"❌ Error during installation: {e}")
+            debug(f"❌ Error during installation: {e}", context=get_context(self))
             if e.stdout:
-                debug(f"❌ Installer stdout: {e.stdout.strip()}")
+                debug(
+                    f"❌ Installer stdout: {e.stdout.strip()}",
+                    context=get_context(self),
+                )
             if e.stderr:
-                debug(f"❌ Installer stderr: {e.stderr.strip()}")
+                debug(
+                    f"❌ Installer stderr: {e.stderr.strip()}",
+                    context=get_context(self),
+                )
             return 1

@@ -1,4 +1,4 @@
-from fit_common.core import debug
+from fit_common.core import debug, get_context
 
 from fit_bootstrap.macos.certificate import CertificateManager
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
@@ -16,11 +16,11 @@ class MacBootstrap:
         return BootstrapResult(code=code, signal=BootstrapSignal.ERROR, message=message)
 
     def install_certificate(self) -> BootstrapResult:
-        debug("PRE-FLIGHT: verifying CA certificate")
+        debug("PRE-FLIGHT: verifying CA certificate", context=get_context(self))
         cert_manager = CertificateManager()
         if cert_manager.add_cert() != 0:
             message = "Certificate installation failed"
-            debug(f"❌ {message}")
+            debug(f"❌ {message}", context=get_context(self))
             return self.__result_from_code(1, message)
         return self.__result_from_code(0)
 

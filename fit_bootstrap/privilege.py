@@ -29,7 +29,7 @@ def ensure_root_or_relaunch(
     if platform == "win":
         return _relaunch_windows(argv)
 
-    debug(f"❌ Unsupported platform for elevation: {platform}")
+    debug(f"❌ Unsupported platform for elevation: {platform}", context="privilege")
     return 1
 
 
@@ -120,5 +120,5 @@ def _relaunch_windows(argv: Sequence[str]) -> int:
         )
         return 0 if result > 32 else 1
     except Exception as exc:
-        debug(f"❌ Unable to elevate on Windows: {exc}")
+        debug(f"❌ Unable to elevate on Windows: {exc}", context="privilege")
         return 1

@@ -648,7 +648,7 @@ xhtml2pdf = "^0.2.17"
 type = "git"
 url = "https://github.com/fit-project/fit-common.git"
 reference = "main"
-resolved_reference = "44a5c6d98756bab0f0eeca4bd5369d880b4d6232"
+resolved_reference = "50313c6b2293046e0403677cf0fe4f644b54709f"
 
 [[package]]
 name = "flask"

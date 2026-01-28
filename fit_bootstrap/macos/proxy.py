@@ -4,7 +4,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import Iterable
 
-from fit_common.core import debug
+from fit_common.core import debug, get_context
 
 
 @dataclass(frozen=True)
@@ -36,7 +36,7 @@ class MacProxyManager:
                 check=True,
             )
         except (subprocess.CalledProcessError, FileNotFoundError) as exc:
-            debug(f"❌ Unable to list network services: {exc}")
+            debug(f"❌ Unable to list network services: {exc}", context="macos.proxy")
             return None
 
         lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
@@ -76,7 +76,9 @@ class MacProxyManager:
                 bypass_domains=bypass,
             )
         except (subprocess.CalledProcessError, FileNotFoundError) as exc:
-            debug(f"❌ Unable to snapshot proxy state: {exc}")
+            debug(
+                f"❌ Unable to snapshot proxy state: {exc}", context=get_context(self)
+            )
             return None
 
     def enable_capture_proxy(self, host: str, port: int) -> None:
@@ -102,11 +104,7 @@ class MacProxyManager:
         else:
             self._set_web_proxy_state(False)
 
-        if (
-            state.secure_enabled
-            and state.secure_host
-            and state.secure_port is not None
-        ):
+        if state.secure_enabled and state.secure_host and state.secure_port is not None:
             self._set_secure_proxy(state.secure_host, state.secure_port)
             self._set_secure_proxy_state(True)
         else:
@@ -166,9 +164,7 @@ class MacProxyManager:
         return self._parse_enabled(output)
 
     def _get_auto_proxy_url(self) -> str | None:
-        output = self._run_networksetup(
-            ["-getautoproxyurl", self.service], check=False
-        )
+        output = self._run_networksetup(["-getautoproxyurl", self.service], check=False)
         return self._parse_value(output, "URL")
 
     def _get_bypass_domains(self) -> list[str]:

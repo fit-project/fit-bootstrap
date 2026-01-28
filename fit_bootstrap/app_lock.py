@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import grp
 import os
 import pwd
-import grp
 import time
 from pathlib import Path
 
@@ -48,7 +48,9 @@ def acquire_app_lock() -> bool:
                 existing_pid = None
 
             if existing_pid and _pid_alive(existing_pid):
-                debug(f"App lock already held by pid {existing_pid}")
+                debug(
+                    f"ℹ️ App lock already held by pid {existing_pid}", context="app_lock"
+                )
                 return False
 
             # Stale lock, remove and retry once.
