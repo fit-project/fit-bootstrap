@@ -21,7 +21,11 @@ class MacBootstrap:
         if cert_manager.add_cert() != 0:
             message = "Certificate installation failed"
             debug(f"❌ {message}", context=get_context(self))
-            return self.__result_from_code(1, message)
+            return BootstrapResult(
+                code=1,
+                signal=BootstrapSignal.CERTIFICATE_NOT_INSTALLED,
+                message=message,
+            )
         return self.__result_from_code(0)
 
     def run(self) -> BootstrapResult:

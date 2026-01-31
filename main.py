@@ -3,6 +3,7 @@ import atexit
 import os
 import sys
 
+from fit_assets import resources  # noqa: F401
 from fit_common.core import (
     DebugLevel,
     debug,
@@ -11,24 +12,51 @@ from fit_common.core import (
     is_bundled,
     set_debug_level,
 )
+from fit_common.gui.utils import show_dialog
 
 from fit_bootstrap.app_lock import acquire_app_lock, release_app_lock
 from fit_bootstrap.bootstrap import Bootstrap
 from fit_bootstrap.constants import STAGE_ENV, STAGE_GUI
+from fit_bootstrap.lang import load_translations
 from fit_bootstrap.macos.proxy import MacProxyManager, ProxyState
 from fit_bootstrap.mitmproxy_runner import MitmproxyRunner
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
 
 
 def _log_bootstrap_result(result: BootstrapResult) -> None:
+    __translations = load_translations()
+    title = __translations.get("BOOSTSTRAP_ERROR_DIALOG_TITLE")
     if result.signal == BootstrapSignal.OK:
         debug("✅ Bootstrap completed")
     elif result.signal == BootstrapSignal.ADMIN_DENIED:
         debug("❌ Admin permissions denied")
+        admin_type = "administrator" if get_platform() == "win" else "root"
+        message = __translations.get("BOOSTSTRAP_ADMIN_DENIED_MESSAGE", "").format(
+            admin_type, admin_type
+        )
+        show_dialog("error", title, message, "")
+    elif result.signal == BootstrapSignal.CERTIFICATE_NOT_INSTALLED:
+        debug("❌ Certificate installation failed")
+        show_dialog(
+            "error",
+            title,
+            __translations.get("BOOSTSTRAP_CERTIFICATE_NOT_INSTALLED_MESSAGE", ""),
+        )
     elif result.signal == BootstrapSignal.UNSUPPORTED_OS:
         debug(f"❌ Unsupported operating system: {result.message}")
+        show_dialog(
+            "error",
+            title,
+            __translations.get("BOOSTSTRAP_UNSUPPORTED_OS_MESSAGE", ""),
+        )
     else:
         debug(f"❌ Bootstrap error: {result.message}")
+        show_dialog(
+            "error",
+            title,
+            __translations.get("BOOSTSTRAP_UNKNOW_ERROR_MSG", "")
+            + f"<br><br>{result.message}",
+        )
 
 
 def parse_args() -> argparse.Namespace:
@@ -44,7 +72,9 @@ def parse_args() -> argparse.Namespace:
 
 def _run_gui() -> int:
     debug(f"_run_gui uid={os.getuid()} euid={os.geteuid()}")
-    debug(f"_run_gui user={os.environ.get('LOGNAME')} sudo_user={os.environ.get('SUDO_USER')}")
+    debug(
+        f"_run_gui user={os.environ.get('LOGNAME')} sudo_user={os.environ.get('SUDO_USER')}"
+    )
     debug(f"_run_gui DISPLAY={os.environ.get('DISPLAY')}")
     try:
         from PySide6.QtWidgets import (

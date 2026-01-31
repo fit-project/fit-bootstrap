@@ -1,8 +1,13 @@
 {
-    "ASKPASS_DIALOG_MESSAGE" : "<html><head/><body><p>It seems the <span style=\"font-weight:600;\">mitmproxy</span> certificate is not installed.<br/><br/><span style=\"font-weight:600; color:#ff0000;\">Without this certificate, FIT Web cannot intercept HTTPS traffic and therefore cannot works.</span><br/><br/>To install it, administrator privileges are required: you will be asked for the root password (possibly more than once).</p><p><br/>This operation is performed only the first time.</p></body></html>",
-    "ASKPASS_DIALOG_TITLE": "Install mitmproxy certificate",
+    "ASKPASS_DIALOG_MESSAGE" : "It seems the <strong style=\"color:red\">MITMPROXY</strong> certificate is not installed.<br/><br/><strong style=\"color:red\">Without this certificate, FIT Web cannot intercept HTTPS traffic and therefore cannot works.</strong><br/><br/>To install it, administrator privileges are required: you will be asked for the root password (possibly more than once).<br/>This operation is performed only the first time.",
+    "ASKPASS_DIALOG_TITLE": "Install MITMPROXY certificate",
     "USER_IS_NOT_ADMIN_TITLE": "User Privilege",
     "USER_IS_NOT_ADMIN_MSG": "To run <strong>FIT</strong>, {} privileges are required.<br><br><strong style=\"color:red\">Without these privileges, FIT cannot works.</strong>",
+    "BOOSTSTRAP_ERROR_DIALOG_TITLE": "FIT Bootstrap Error",
+    "BOOSTSTRAP_ADMIN_DENIED_MESSAGE": "Privileges denied for {}.<br><br><strong style=\"color:red\">FIT cannot run without {} privileges.</strong>",
+    "BOOSTSTRAP_CERTIFICATE_NOT_INSTALLED_MESSAGE": "MITMPROXY certificate installation failed. <br><br><strong style=\"color:red\">FIT cannot run without this certificate.</strong>",
+    "BOOSTSTRAP_UNSUPPORTED_OS_MESSAGE": "Unsupported operating system. <br><br><strong style=\"color:red\">FIT is only compatible with macOS, Windows and Linux.</strong>",
+    "BOOSTSTRAP_UNKNOW_ERROR_MSG": "An unknown error occurred during the bootstrap process. <strong style=\"color:red\">FIT cannot run</strong>. See details below:",
     "CANCEL_BUTTON": "Cancel",
     "OK_BUTTON": "Ok"
 }

@@ -77,7 +77,7 @@ class Bootstrap:
                         signal=(
                             BootstrapSignal.OK
                             if relaunch_code == 0
-                            else BootstrapSignal.ERROR
+                            else BootstrapSignal.ADMIN_DENIED
                         ),
                         message=None if relaunch_code == 0 else "Elevation failed",
                     )
