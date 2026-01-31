@@ -69,12 +69,11 @@ def _relaunch_macos(
         cmd += [sys.executable, *argv]
         return cmd
 
-    # Prefer SUDO_ASKPASS for non-interactive elevation to avoid osascript issues.
+    # Prefer SUDO_ASKPASS for non-interactive elevation.
     askpass = Path(__file__).parent / "macos" / "askpass.sh"
     if askpass.exists():
         env = os.environ.copy()
         env["SUDO_ASKPASS"] = str(askpass)
-        env["FIT_ASKPASS_MODE"] = "pyside"
         env["FIT_ASKPASS_FORM_TYPE_ARGUMENT"] = "--launch-gui"
         env["FIT_ASKPASS_PYTHON"] = sys.executable
         if os.environ.get("FIT_BOOTSTRAP_DEBUG") == "1":

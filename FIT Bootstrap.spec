@@ -9,6 +9,7 @@ hiddenimports += collect_submodules('mitmproxy')
 hiddenimports += ['fit_bootstrap.macos.ui_askpass_dialog']
 hiddenimports += ['fit_bootstrap.macos.askpass_dialog']
 datas = collect_data_files('fit_assets')
+datas += collect_data_files('fit_common', includes=['lang/*.json'])
 datas += collect_data_files('mitmproxy')
 datas += collect_data_files('fit_bootstrap', includes=['lang/*.json'])
 datas += [('fit_bootstrap/macos/askpass.sh', 'fit_bootstrap/macos')]
