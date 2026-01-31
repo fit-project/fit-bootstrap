@@ -13,7 +13,6 @@ from fit_common.core import debug, get_platform
 def ensure_root_or_relaunch(
     argv: Sequence[str],
     *,
-    prefer_osascript: bool = False,
     env_overrides: Mapping[str, str] | None = None,
 ) -> int:
     if _is_elevated():
@@ -21,9 +20,7 @@ def ensure_root_or_relaunch(
 
     platform = get_platform()
     if platform == "macos":
-        return _relaunch_macos(
-            argv, prefer_osascript=prefer_osascript, env_overrides=env_overrides
-        )
+        return _relaunch_macos(argv, env_overrides=env_overrides)
     if platform == "lin":
         return _relaunch_linux(argv, env_overrides=env_overrides)
     if platform == "win":
@@ -61,21 +58,23 @@ def _build_command(
 
 def _relaunch_macos(
     argv: Sequence[str],
-    prefer_osascript: bool,
     env_overrides: Mapping[str, str] | None = None,
 ) -> int:
-    if prefer_osascript:
-        cmd = _build_command(argv, env_overrides=env_overrides)
-        cmd_escaped = cmd.replace('"', '\\"')
-        osa = f'do shell script "{cmd_escaped}" with administrator privileges'
-        return subprocess.call(["osascript", "-e", osa])
+    def _sudo_argv() -> list[str]:
+        cmd: list[str] = ["sudo", "-A"]
+        if env_overrides:
+            cmd.append("env")
+            for key, value in env_overrides.items():
+                cmd.append(f"{key}={value}")
+        cmd += [sys.executable, *argv]
+        return cmd
 
     # Prefer SUDO_ASKPASS for non-interactive elevation to avoid osascript issues.
     askpass = Path(__file__).parent / "macos" / "askpass.sh"
     if askpass.exists():
         env = os.environ.copy()
         env["SUDO_ASKPASS"] = str(askpass)
-        env["FIT_ASKPASS_MODE"] = "pyside"
+        env["FIT_ASKPASS_MODE"] = "applescript"
         env["FIT_ASKPASS_PYTHON"] = sys.executable
         if os.environ.get("FIT_BOOTSTRAP_DEBUG") == "1":
             env["FIT_ASKPASS_DEBUG"] = "1"
@@ -84,18 +83,21 @@ def _relaunch_macos(
         env["DISPLAY"] = env.get("DISPLAY", ":0")
         if env_overrides:
             env.update(env_overrides)
-        return subprocess.call(
-            ["sudo", "-A", sys.executable, *argv],
-            env=env,
-        )
+
+        debug("sys.executable: " + sys.executable)
+        debug("argv: " + " ".join(shlex.quote(str(arg)) for arg in argv))
+
+        rc = subprocess.call(_sudo_argv(), env=env)
+        if rc != 0:
+            debug(f"sudo failed, exit code: {rc}", context="privilege")
+        return rc
 
     if sys.stdin.isatty() and sys.stdout.isatty():
+        if env_overrides:
+            return subprocess.call(_sudo_argv())
         return subprocess.call(["sudo", sys.executable, *argv])
-
-    cmd = _build_command(argv, env_overrides=env_overrides)
-    cmd_escaped = cmd.replace('"', '\\"')
-    osa = f'do shell script "{cmd_escaped}" with administrator privileges'
-    return subprocess.call(["osascript", "-e", osa])
+    debug("❌ No TTY available for sudo; osascript elevation disabled", context="privilege")
+    return 1
 
 
 def _relaunch_linux(

@@ -43,6 +43,9 @@ def parse_args() -> argparse.Namespace:
 
 
 def _run_gui() -> int:
+    debug(f"_run_gui uid={os.getuid()} euid={os.geteuid()}")
+    debug(f"_run_gui user={os.environ.get('LOGNAME')} sudo_user={os.environ.get('SUDO_USER')}")
+    debug(f"_run_gui DISPLAY={os.environ.get('DISPLAY')}")
     try:
         from PySide6.QtWidgets import (
             QApplication,
@@ -194,10 +197,10 @@ def main() -> int:
         return _run_gui()
 
     bootstrap = Bootstrap(debug_enabled=debug_enabled)
-    mitm_runner = MitmproxyRunner()
-    if not mitm_runner.start():
-        debug("❌ mitmproxy start failed")
-        return 1
+    # mitm_runner = MitmproxyRunner()
+    # if not mitm_runner.start():
+    #     debug("❌ mitmproxy start failed")
+    #     return 1
 
     preflight_result = bootstrap._dispatch(
         on_signal=_log_bootstrap_result,
@@ -207,7 +210,8 @@ def main() -> int:
     )
 
     if preflight_result.code != 0:
-        mitm_runner.stop_by_pid()
+        pass
+        # mitm_runner.stop_by_pid()
     return preflight_result.code
 
 

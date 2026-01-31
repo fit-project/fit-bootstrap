@@ -65,7 +65,6 @@ class Bootstrap:
                             relaunch_argv[0] = str(Path(relaunch_argv[0]).resolve())
                     relaunch_code = ensure_root_or_relaunch(
                         relaunch_argv,
-                        prefer_osascript=True,
                         env_overrides={
                             stage_env: stage_gui,
                             FIT_USER_APP_PATH: os.environ[FIT_USER_APP_PATH],
