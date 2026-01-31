@@ -74,7 +74,8 @@ def _relaunch_macos(
     if askpass.exists():
         env = os.environ.copy()
         env["SUDO_ASKPASS"] = str(askpass)
-        env["FIT_ASKPASS_MODE"] = "applescript"
+        env["FIT_ASKPASS_MODE"] = "pyside"
+        env["FIT_ASKPASS_FORM_TYPE_ARGUMENT"] = "--launch-gui"
         env["FIT_ASKPASS_PYTHON"] = sys.executable
         if os.environ.get("FIT_BOOTSTRAP_DEBUG") == "1":
             env["FIT_ASKPASS_DEBUG"] = "1"
@@ -96,7 +97,10 @@ def _relaunch_macos(
         if env_overrides:
             return subprocess.call(_sudo_argv())
         return subprocess.call(["sudo", sys.executable, *argv])
-    debug("❌ No TTY available for sudo; osascript elevation disabled", context="privilege")
+    debug(
+        "❌ No TTY available for sudo; osascript elevation disabled",
+        context="privilege",
+    )
     return 1
 
 

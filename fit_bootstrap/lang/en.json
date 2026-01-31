@@ -1,6 +1,8 @@
 {
     "ASKPASS_DIALOG_MESSAGE" : "<html><head/><body><p>It seems the <span style=\"font-weight:600;\">mitmproxy</span> certificate is not installed.<br/><br/><span style=\"font-weight:600; color:#ff0000;\">Without this certificate, FIT Web cannot intercept HTTPS traffic and therefore cannot function. For this reason it will be closed.</span><br/><br/>To install it, administrator privileges are required: you will be asked for the root password (possibly more than once).</p><p><br/>This operation is performed only the first time.</p></body></html>",
     "ASKPASS_DIALOG_TITLE": "Install mitmproxy certificate",
+    "USER_IS_NOT_ADMIN_TITLE": "User Privilege",
+    "USER_IS_NOT_ADMIN_MSG": "To run <strong>FIT</strong>, {} privileges are required.<br><br><strong style=\"color:red\">Without these privileges, FIT cannot works.</strong>",
     "CANCEL_BUTTON": "Cancel",
     "OK_BUTTON": "Ok"
 }

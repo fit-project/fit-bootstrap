@@ -173,6 +173,7 @@ class CertificateManager:
             elif askpass.exists():
                 env["SUDO_ASKPASS"] = str(askpass)
                 env["FIT_ASKPASS_MODE"] = os.environ.get("FIT_ASKPASS_MODE", "pyside")
+                env["FIT_ASKPASS_FORM_TYPE_ARGUMENT"] = "--install-certificate"
                 env["FIT_ASKPASS_PYTHON"] = sys.executable
                 if os.environ.get(FIT_DEBUG_ENABLED) == "1":
                     env["FIT_BOOTSTRAP_DEBUG"] = "1"

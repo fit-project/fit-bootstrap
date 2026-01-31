@@ -17,13 +17,14 @@ if [ "$FIT_ASKPASS_MODE" = "pyside" ] && [ -n "$FIT_ASKPASS_PYTHON" ]; then
   if [ "$log_enabled" -eq 1 ]; then
     echo "askpass: trying pyside" >> "$log"
     echo "askpass: python=$FIT_ASKPASS_PYTHON" >> "$log"
+    echo "askpass: form_type_arg=$FIT_ASKPASS_FORM_TYPE_ARGUMENT" >> "$log"
   fi
   case "$FIT_ASKPASS_PYTHON" in
     *".app/Contents/MacOS/"*)
-      pw=$(FIT_ASKPASS_DIALOG=1 "$FIT_ASKPASS_PYTHON" 2>>"$log")
+      pw=$(FIT_ASKPASS_DIALOG=1 "$FIT_ASKPASS_PYTHON" "$FIT_ASKPASS_FORM_TYPE_ARGUMENT" 2>>"$log")
       ;;
     *)
-      pw=$(PYTHONPATH="$repo_root" "$FIT_ASKPASS_PYTHON" -m fit_bootstrap.macos.askpass_dialog 2>>"$log")
+      pw=$(PYTHONPATH="$repo_root" "$FIT_ASKPASS_PYTHON" -m fit_bootstrap.macos.askpass_dialog "$FIT_ASKPASS_FORM_TYPE_ARGUMENT" 2>>"$log")
       ;;
   esac
   if [ "$log_enabled" -eq 1 ]; then
