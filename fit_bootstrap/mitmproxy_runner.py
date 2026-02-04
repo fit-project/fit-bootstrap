@@ -13,6 +13,7 @@ from fit_common.core import debug, get_context
 from fit_bootstrap.constants import (
     FIT_DEBUG_ENABLED,
     FIT_LOG_APP_PATH,
+    FIT_MITM_PORT,
     FIT_USER_APP_PATH,
 )
 
@@ -105,6 +106,16 @@ class MitmproxyRunner:
             "--set",
             f"hardump={self.har_file}",
         ]
+        mitm_port = os.environ.get(FIT_MITM_PORT)
+        if mitm_port:
+            try:
+                port_value = int(mitm_port)
+                cmd += ["--listen-port", str(port_value)]
+            except ValueError:
+                debug(
+                    f"❌ Invalid {FIT_MITM_PORT} value: {mitm_port}",
+                    context=get_context(self),
+                )
         if os.environ.get(FIT_DEBUG_ENABLED) == "1":
             cmd += ["--set", "termlog_verbosity=debug"]
         debug(f"ℹ️ mitm cmd: {cmd}", context=get_context(self))

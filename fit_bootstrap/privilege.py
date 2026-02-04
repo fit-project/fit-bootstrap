@@ -26,7 +26,10 @@ def ensure_root_or_relaunch(
     if platform == "win":
         return _relaunch_windows(argv)
 
-    debug(f"❌ Unsupported platform for elevation: {platform}", context="privilege")
+    debug(
+        f"❌ Unsupported platform for elevation: {platform}",
+        context="fit_bootstrap.privilege",
+    )
     return 1
 
 
@@ -84,12 +87,18 @@ def _relaunch_macos(
         if env_overrides:
             env.update(env_overrides)
 
-        debug("sys.executable: " + sys.executable)
-        debug("argv: " + " ".join(shlex.quote(str(arg)) for arg in argv))
+        debug("sys.executable: " + sys.executable, context="fit_bootstrap.privilege")
+        debug(
+            "argv: " + " ".join(shlex.quote(str(arg)) for arg in argv),
+            context="fit_bootstrap.privilege",
+        )
 
         rc = subprocess.call(_sudo_argv(), env=env)
         if rc != 0:
-            debug(f"sudo failed, exit code: {rc}", context="privilege")
+            debug(
+                f"sudo failed, exit code: {rc}",
+                context="fit_bootstrap.privilege",
+            )
         return rc
 
     if sys.stdin.isatty() and sys.stdout.isatty():
@@ -98,7 +107,7 @@ def _relaunch_macos(
         return subprocess.call(["sudo", sys.executable, *argv])
     debug(
         "❌ No TTY available for sudo; osascript elevation disabled",
-        context="privilege",
+        context="fit_bootstrap.privilege",
     )
     return 1
 
@@ -125,5 +134,8 @@ def _relaunch_windows(argv: Sequence[str]) -> int:
         )
         return 0 if result > 32 else 1
     except Exception as exc:
-        debug(f"❌ Unable to elevate on Windows: {exc}", context="privilege")
+        debug(
+            f"❌ Unable to elevate on Windows: {exc}",
+            context="fit_bootstrap.privilege",
+        )
         return 1

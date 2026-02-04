@@ -27,9 +27,3 @@ class MacBootstrap:
                 message=message,
             )
         return self.__result_from_code(0)
-
-    def run(self) -> BootstrapResult:
-        cert_result = self.install_certificate()
-        if cert_result.code != 0:
-            return cert_result
-        return self.__result_from_code(0)

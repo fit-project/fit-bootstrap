@@ -3,14 +3,16 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from fit_common.core import debug, get_platform, is_bundled
+from fit_common.core import debug, find_free_port, get_context, get_platform, is_bundled
 from fit_common.core.paths import resolve_app_path, resolve_log_path
 
+from fit_bootstrap.caller import CallerProfile
 from fit_bootstrap.constants import (
     FIT_DEBUG_ENABLED,
     FIT_DNS,
     FIT_HOST_IP,
     FIT_LOG_APP_PATH,
+    FIT_MITM_PORT,
     FIT_OS_TYPE,
     FIT_OS_VERSION,
     FIT_USER_APP_PATH,
@@ -26,7 +28,9 @@ class Bootstrap:
     def __init__(
         self,
         debug_enabled: bool = False,
+        caller: CallerProfile = CallerProfile.FIT,
     ) -> None:
+        self.caller = caller
         os.environ[FIT_DEBUG_ENABLED] = "1" if debug_enabled else "0"
         os.environ[FIT_USER_APP_PATH] = resolve_app_path()
         os.environ[FIT_LOG_APP_PATH] = resolve_log_path()
@@ -36,6 +40,18 @@ class Bootstrap:
         os.environ[FIT_USERNAME] = self.acquisition_context.username
         os.environ[FIT_HOST_IP] = self.acquisition_context.host_ip
         os.environ[FIT_DNS] = ",".join(self.acquisition_context.dns_servers)
+        self._apply_caller_profile()
+
+    def _apply_caller_profile(self) -> None:
+        if self.caller in {CallerProfile.FIT, CallerProfile.FIT_WEB}:
+            try:
+                os.environ.setdefault(FIT_MITM_PORT, str(find_free_port()))
+            except Exception as exc:
+                debug(
+                    f"❌ Unable to select free mitm port: {exc}",
+                    context=get_context(self),
+                )
+                os.environ.setdefault(FIT_MITM_PORT, "8080")
 
     def _dispatch(
         self,
@@ -53,7 +69,12 @@ class Bootstrap:
                     message="Missing macOS bootstrap parameters",
                 )
             else:
-                cert_result = MacBootstrap().run()
+                if self.caller in {CallerProfile.FIT, CallerProfile.FIT_WEB}:
+                    cert_result = MacBootstrap().install_certificate()
+                else:
+                    cert_result = BootstrapResult(
+                        code=0, signal=BootstrapSignal.OK, message=None
+                    )
                 if cert_result.code != 0:
                     result = cert_result
                 else:
@@ -67,11 +88,19 @@ class Bootstrap:
                         relaunch_argv,
                         env_overrides={
                             stage_env: stage_gui,
-                            FIT_USER_APP_PATH: os.environ[FIT_USER_APP_PATH],
+                            FIT_DEBUG_ENABLED: os.environ.get(FIT_DEBUG_ENABLED, "0"),
+                            FIT_USER_APP_PATH: os.environ.get(FIT_USER_APP_PATH, ""),
+                            FIT_LOG_APP_PATH: os.environ.get(FIT_LOG_APP_PATH, ""),
+                            FIT_OS_TYPE: os.environ.get(FIT_OS_TYPE, ""),
+                            FIT_OS_VERSION: os.environ.get(FIT_OS_VERSION, ""),
+                            FIT_USERNAME: os.environ.get(FIT_USERNAME, ""),
+                            FIT_HOST_IP: os.environ.get(FIT_HOST_IP, ""),
+                            FIT_DNS: os.environ.get(FIT_DNS, ""),
+                            FIT_MITM_PORT: os.environ.get(FIT_MITM_PORT, ""),
                         },
                     )
                     if relaunch_code != 0:
-                        debug("❌ Elevation failed")
+                        debug("❌ Elevation failed", context=get_context(self))
                     result = BootstrapResult(
                         code=relaunch_code,
                         signal=(

@@ -16,7 +16,8 @@ from fit_common.gui.utils import show_dialog
 
 from fit_bootstrap.app_lock import acquire_app_lock, release_app_lock
 from fit_bootstrap.bootstrap import Bootstrap
-from fit_bootstrap.constants import STAGE_ENV, STAGE_GUI
+from fit_bootstrap.caller import CallerProfile
+from fit_bootstrap.constants import FIT_MITM_PORT, STAGE_ENV, STAGE_GUI
 from fit_bootstrap.lang import load_translations
 from fit_bootstrap.macos.proxy import MacProxyManager, ProxyState
 from fit_bootstrap.mitmproxy_runner import MitmproxyRunner
@@ -27,30 +28,33 @@ def _log_bootstrap_result(result: BootstrapResult) -> None:
     __translations = load_translations()
     title = __translations.get("BOOSTSTRAP_ERROR_DIALOG_TITLE")
     if result.signal == BootstrapSignal.OK:
-        debug("✅ Bootstrap completed")
+        debug("✅ Bootstrap completed", context="main.fit_bootstrap")
     elif result.signal == BootstrapSignal.ADMIN_DENIED:
-        debug("❌ Admin permissions denied")
+        debug("❌ Admin permissions denied", context="main.fit_bootstrap")
         admin_type = "administrator" if get_platform() == "win" else "root"
         message = __translations.get("BOOSTSTRAP_ADMIN_DENIED_MESSAGE", "").format(
             admin_type, admin_type
         )
         show_dialog("error", title, message, "")
     elif result.signal == BootstrapSignal.CERTIFICATE_NOT_INSTALLED:
-        debug("❌ Certificate installation failed")
+        debug("❌ Certificate installation failed", context="main.fit_bootstrap")
         show_dialog(
             "error",
             title,
             __translations.get("BOOSTSTRAP_CERTIFICATE_NOT_INSTALLED_MESSAGE", ""),
         )
     elif result.signal == BootstrapSignal.UNSUPPORTED_OS:
-        debug(f"❌ Unsupported operating system: {result.message}")
+        debug(
+            f"❌ Unsupported operating system: {result.message}",
+            context="main.fit_bootstrap",
+        )
         show_dialog(
             "error",
             title,
             __translations.get("BOOSTSTRAP_UNSUPPORTED_OS_MESSAGE", ""),
         )
     else:
-        debug(f"❌ Bootstrap error: {result.message}")
+        debug(f"❌ Bootstrap error: {result.message}", context="main.fit_bootstrap")
         show_dialog(
             "error",
             title,
@@ -71,11 +75,14 @@ def parse_args() -> argparse.Namespace:
 
 
 def _run_gui() -> int:
-    debug(f"_run_gui uid={os.getuid()} euid={os.geteuid()}")
     debug(
-        f"_run_gui user={os.environ.get('LOGNAME')} sudo_user={os.environ.get('SUDO_USER')}"
+        f"_run_gui uid={os.getuid()} euid={os.geteuid()}", context="main.fit_bootstrap"
     )
-    debug(f"_run_gui DISPLAY={os.environ.get('DISPLAY')}")
+    debug(
+        f"_run_gui user={os.environ.get('LOGNAME')} sudo_user={os.environ.get('SUDO_USER')}",
+        context="main.fit_bootstrap",
+    )
+    debug(f"_run_gui DISPLAY={os.environ.get('DISPLAY')}", context="main.fit_bootstrap")
     try:
         from PySide6.QtWidgets import (
             QApplication,
@@ -85,7 +92,10 @@ def _run_gui() -> int:
             QWidget,
         )
     except ModuleNotFoundError:
-        debug("❌ PySide6 is not installed in this environment")
+        debug(
+            "❌ PySide6 is not installed in this environment",
+            context="main.fit_bootstrap",
+        )
         return 1
 
     app = QApplication(sys.argv)
@@ -137,7 +147,16 @@ def _run_gui() -> int:
             start_button.setEnabled(True)
             return
 
-        proxy_manager.enable_capture_proxy("127.0.0.1", 8080)
+        mitm_port = os.environ.get(FIT_MITM_PORT, "8080")
+        debug(
+            f"mitm_port env={os.environ.get(FIT_MITM_PORT)} resolved={mitm_port}",
+            context="main.fit_bootstrap",
+        )
+        try:
+            port_value = int(mitm_port)
+        except ValueError:
+            port_value = 8080
+        proxy_manager.enable_capture_proxy("127.0.0.1", port_value)
         status_label.setText(f"Proxy status: enabled ({proxy_service})")
         stop_button.setEnabled(True)
 
@@ -212,25 +231,27 @@ def main() -> int:
             "verbose": DebugLevel.VERBOSE,
         }[args.debug]
     )
-    debug(f"argv: {sys.argv}")
-    debug(f"bundled: {is_bundled()}")
+    debug(f"argv: {sys.argv}", context="main.fit_bootstrap")
+    debug(f"bundled: {is_bundled()}", context="main.fit_bootstrap")
 
     if os.environ.get(STAGE_ENV) == STAGE_GUI:
-        debug(f"GUI stage admin: {is_admin()}")
+        debug(f"GUI stage admin: {is_admin()}", context="main.fit_bootstrap")
         if not is_admin():
-            debug("❌ GUI stage requires root privileges")
+            debug("❌ GUI stage requires root privileges", context="main.fit_bootstrap")
             return 1
         if not acquire_app_lock():
-            debug("❌ Another instance is already running")
+            debug(
+                "❌ Another instance is already running", context="main.fit_bootstrap"
+            )
             return 1
         atexit.register(release_app_lock)
         return _run_gui()
 
-    bootstrap = Bootstrap(debug_enabled=debug_enabled)
-    # mitm_runner = MitmproxyRunner()
-    # if not mitm_runner.start():
-    #     debug("❌ mitmproxy start failed")
-    #     return 1
+    bootstrap = Bootstrap(debug_enabled=debug_enabled, caller=CallerProfile.FIT)
+    mitm_runner = MitmproxyRunner()
+    if not mitm_runner.start():
+        debug("❌ mitmproxy start failed", context="main.fit_bootstrap")
+        return 1
 
     preflight_result = bootstrap._dispatch(
         on_signal=_log_bootstrap_result,
