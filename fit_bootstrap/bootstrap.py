@@ -3,7 +3,14 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from fit_common.core import debug, find_free_port, get_context, get_platform, is_bundled
+from fit_common.core import (
+    debug,
+    find_free_port,
+    get_context,
+    get_platform,
+    get_system_lang,
+    is_bundled,
+)
 from fit_common.core.paths import resolve_app_path, resolve_log_path
 
 from fit_bootstrap.caller import CallerProfile
@@ -16,6 +23,7 @@ from fit_bootstrap.constants import (
     FIT_OS_TYPE,
     FIT_OS_VERSION,
     FIT_USER_APP_PATH,
+    FIT_USER_SYSTEM_LANG,
     FIT_USERNAME,
 )
 from fit_bootstrap.context import AcquisitionContext
@@ -40,6 +48,7 @@ class Bootstrap:
         os.environ[FIT_USERNAME] = self.acquisition_context.username
         os.environ[FIT_HOST_IP] = self.acquisition_context.host_ip
         os.environ[FIT_DNS] = ",".join(self.acquisition_context.dns_servers)
+        os.environ[FIT_USER_SYSTEM_LANG] = get_system_lang()
         self._apply_caller_profile()
 
     def _apply_caller_profile(self) -> None:
@@ -97,6 +106,9 @@ class Bootstrap:
                             FIT_HOST_IP: os.environ.get(FIT_HOST_IP, ""),
                             FIT_DNS: os.environ.get(FIT_DNS, ""),
                             FIT_MITM_PORT: os.environ.get(FIT_MITM_PORT, ""),
+                            FIT_USER_SYSTEM_LANG: os.environ.get(
+                                FIT_USER_SYSTEM_LANG, ""
+                            ),
                         },
                     )
                     if relaunch_code != 0:
