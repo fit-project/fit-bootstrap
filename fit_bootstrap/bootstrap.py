@@ -17,6 +17,7 @@ from fit_bootstrap.caller import CallerProfile
 from fit_bootstrap.constants import (
     FIT_DEBUG_ENABLED,
     FIT_DNS,
+    FIT_EXECUTION_ENV,
     FIT_HOST_IP,
     FIT_LOG_APP_PATH,
     FIT_MITM_PORT,
@@ -49,6 +50,8 @@ class Bootstrap:
         os.environ[FIT_HOST_IP] = self.acquisition_context.host_ip
         os.environ[FIT_DNS] = ",".join(self.acquisition_context.dns_servers)
         os.environ[FIT_USER_SYSTEM_LANG] = get_system_lang()
+        os.environ[FIT_EXECUTION_ENV] = "LOCAL_PC"
+
         self._apply_caller_profile()
 
     def _apply_caller_profile(self) -> None:
@@ -109,6 +112,7 @@ class Bootstrap:
                             FIT_USER_SYSTEM_LANG: os.environ.get(
                                 FIT_USER_SYSTEM_LANG, ""
                             ),
+                            FIT_EXECUTION_ENV: os.environ.get(FIT_EXECUTION_ENV, ""),
                         },
                     )
                     if relaunch_code != 0:
