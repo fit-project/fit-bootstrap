@@ -9,6 +9,7 @@ from fit_common.core import (
     get_context,
     get_platform,
     get_system_lang,
+    get_version,
     is_bundled,
 )
 from fit_common.core.paths import resolve_app_path, resolve_log_path
@@ -23,9 +24,11 @@ from fit_bootstrap.constants import (
     FIT_MITM_PORT,
     FIT_OS_TYPE,
     FIT_OS_VERSION,
+    FIT_PUBLIC_IP,
     FIT_USER_APP_PATH,
     FIT_USER_SYSTEM_LANG,
     FIT_USERNAME,
+    FIT_VERSION,
 )
 from fit_bootstrap.context import AcquisitionContext
 from fit_bootstrap.macos.bootstrap import MacBootstrap
@@ -48,9 +51,11 @@ class Bootstrap:
         os.environ[FIT_OS_VERSION] = self.acquisition_context.os_version
         os.environ[FIT_USERNAME] = self.acquisition_context.username
         os.environ[FIT_HOST_IP] = self.acquisition_context.host_ip
+        os.environ[FIT_PUBLIC_IP] = self.acquisition_context.public_ip
         os.environ[FIT_DNS] = ",".join(self.acquisition_context.dns_servers)
         os.environ[FIT_USER_SYSTEM_LANG] = get_system_lang()
         os.environ[FIT_EXECUTION_ENV] = "LOCAL_PC"
+        os.environ[FIT_VERSION] = get_version()
 
         self._apply_caller_profile()
 
@@ -107,12 +112,14 @@ class Bootstrap:
                             FIT_OS_VERSION: os.environ.get(FIT_OS_VERSION, ""),
                             FIT_USERNAME: os.environ.get(FIT_USERNAME, ""),
                             FIT_HOST_IP: os.environ.get(FIT_HOST_IP, ""),
+                            FIT_PUBLIC_IP: os.environ.get(FIT_PUBLIC_IP, ""),
                             FIT_DNS: os.environ.get(FIT_DNS, ""),
                             FIT_MITM_PORT: os.environ.get(FIT_MITM_PORT, ""),
                             FIT_USER_SYSTEM_LANG: os.environ.get(
                                 FIT_USER_SYSTEM_LANG, ""
                             ),
                             FIT_EXECUTION_ENV: os.environ.get(FIT_EXECUTION_ENV, ""),
+                            FIT_VERSION: os.environ.get(FIT_VERSION, ""),
                         },
                     )
                     if relaunch_code != 0:

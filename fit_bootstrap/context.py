@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import getpass
+import ipaddress
 import platform
 import socket
+from dataclasses import dataclass
 from typing import List
+from urllib import error, request
 
 
 @dataclass(frozen=True)
@@ -13,8 +15,8 @@ class AcquisitionContext:
     os_version: str
     username: str
     host_ip: str
+    public_ip: str
     dns_servers: List[str]
-
 
     @staticmethod
     def _resolve_host_ip() -> str:
@@ -27,6 +29,23 @@ class AcquisitionContext:
                 return socket.gethostbyname(socket.gethostname())
             except OSError:
                 return "unknown"
+
+    @staticmethod
+    def _resolve_public_ip() -> str:
+        endpoints = (
+            "https://api.ipify.org",
+            "https://ifconfig.me/ip",
+            "https://icanhazip.com",
+        )
+        for endpoint in endpoints:
+            try:
+                with request.urlopen(endpoint, timeout=2.0) as response:
+                    ip = response.read().decode("utf-8", errors="ignore").strip()
+                ipaddress.ip_address(ip)
+                return ip
+            except (OSError, ValueError, error.URLError):
+                continue
+        return ""
 
     @staticmethod
     def _read_dns_servers() -> List[str]:
@@ -52,5 +71,6 @@ class AcquisitionContext:
             os_version=platform.platform(),
             username=getpass.getuser(),
             host_ip=cls._resolve_host_ip(),
+            public_ip=cls._resolve_public_ip(),
             dns_servers=cls._read_dns_servers(),
         )

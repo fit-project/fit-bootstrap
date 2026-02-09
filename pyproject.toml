@@ -7,9 +7,10 @@ license = "LGPL-3.0-or-later"
 packages = [
     { include = "fit_bootstrap", from = ".", format = "sdist" }
 ]
+exclude = ["fit_bootstrap/macos/ui/**", "fit_bootstrap/mitmproxy_addons/**", "fit_bootstrap/mitmproxy_runner.py"]
 
 include = [
-    "fit_assets/mimtproxy/mitmproxy-ca-cert.pem"
+    "fit_assets/mitmproxy/mitmproxy-ca-cert.pem"
 ]
 
 [tool.poetry.dependencies]
