@@ -1,8 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding:utf-8 -*-
+######
+# -----
+# Copyright (c) 2023 FIT-Project
+# SPDX-License-Identifier: LGPL-3.0-or-later
+# -----
+######
+
 import json
-import locale
-import os
-import subprocess
-import sys
 from pathlib import Path
 
 from fit_common.core import DEFAULT_LANG, get_system_lang
