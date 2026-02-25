@@ -14,12 +14,22 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.11,<3.14"
+python = ">=3.12,<3.14"
 
-fit-common = {git = "https://github.com/fit-project/fit-common.git", rev = "main"}
-fit-assets = {git = "https://github.com/fit-project/fit-assets.git", rev = "main"}
-pyinstaller = "^6.18.0"
-mitmproxy = "10.4.2"
+fit-common = {git = "https://github.com/fit-project/fit-common.git", tag = "v1.0.0-rc2"}
+fit-assets = {git = "https://github.com/fit-project/fit-assets.git", tag = "v1.0.0-rc2"}
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+pythonpath = ["."]
+markers = [
+    "unit: fast isolated tests",
+    "contract: cross-module contract tests for public interfaces and integrations",
+    "integration: integration tests with real external resources and dependencies",
+    "e2e: end-to-end UI workflow tests",
+]
 
 
 [build-system]
