@@ -31,6 +31,25 @@ markers = [
     "e2e: end-to-end UI workflow tests",
 ]
 
+[tool.mypy]
+python_version = "3.12"
+exclude = '''(?x)(
+    ^fit_bootstrap/macos/proxy\.py$
+  | ^fit_bootstrap/mitmproxy_runner\.py$
+  | ^fit_bootstrap/mitmproxy_addons/.*
+)'''
+
+[[tool.mypy.overrides]]
+module = [
+    "fit_common",
+    "fit_common.*",
+    "fit_assets",
+    "fit_assets.*",
+    "mitmproxy",
+    "mitmproxy.*",
+]
+ignore_missing_imports = true
+
 
 [build-system]
 requires = ["poetry-core"]

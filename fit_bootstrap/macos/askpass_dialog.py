@@ -57,8 +57,9 @@ class AskpassDialog(QtWidgets.QDialog, Ui_askpass_dialog):
         return self.password.text()
 
     def _resize_to_message(self) -> None:
-        if self.layout() is not None:
-            self.layout().activate()
+        layout = self.layout()
+        if layout is not None:
+            layout.activate()
         self.content_box_layout.activate()
         self.message.adjustSize()
         self.adjustSize()
@@ -80,10 +81,10 @@ def parse_args(argv: list[str]) -> tuple[str, list[str]]:
 
 def main() -> int:
     mode, qt_args = parse_args(sys.argv[1:])
-    app = QApplication([sys.argv[0], *qt_args])
+    QApplication([sys.argv[0], *qt_args])
     dialog = AskpassDialog(mode)
     result = dialog.exec()
-    if result != QDialog.Accepted:
+    if result != int(QDialog.DialogCode.Accepted):
         return 1
     password = dialog.get_password()
     if not password:

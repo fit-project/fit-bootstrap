@@ -41,7 +41,10 @@ def _is_elevated() -> bool:
         try:
             import ctypes
 
-            return bool(ctypes.windll.shell32.IsUserAnAdmin())
+            windll = getattr(ctypes, "windll", None)
+            if windll is None:
+                return False
+            return bool(windll.shell32.IsUserAnAdmin())
         except Exception:
             return False
     return False
@@ -123,8 +126,11 @@ def _relaunch_windows(argv: Sequence[str]) -> int:
     try:
         import ctypes
 
+        windll = getattr(ctypes, "windll", None)
+        if windll is None:
+            return 1
         params = " ".join(shlex.quote(str(arg)) for arg in argv)
-        result = ctypes.windll.shell32.ShellExecuteW(
+        result = windll.shell32.ShellExecuteW(
             None,
             "runas",
             sys.executable,

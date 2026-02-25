@@ -123,6 +123,7 @@ PIPAPI_PYTHON_LOCATION="$(python -c 'import sys; print(sys.executable)')" \
 ```
 
 Note: `pip-audit` may print a skip message for `fit-assets`, `fit-bootstrap` and `fit-common` because it is a local package and not published on PyPI.
+Note: if `pip-audit` reports a `Flask` vulnerability in local development, it is usually a transitive dependency from a locally installed `mitmproxy`; this does not affect project CI because `mitmproxy` is not part of the CI dependency set for `v1.0.0`.
 
 ---
 

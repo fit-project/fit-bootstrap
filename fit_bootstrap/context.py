@@ -39,7 +39,8 @@ class AcquisitionContext:
         )
         for endpoint in endpoints:
             try:
-                with request.urlopen(endpoint, timeout=2.0) as response:
+                # Endpoints are static HTTPS URLs controlled by the code.
+                with request.urlopen(endpoint, timeout=2.0) as response:  # nosec B310
                     ip = response.read().decode("utf-8", errors="ignore").strip()
                 ipaddress.ip_address(ip)
                 return ip

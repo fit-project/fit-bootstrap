@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
 from importlib.resources import files
 from pathlib import Path
 
@@ -74,7 +75,7 @@ class CertificateManager:
             debug(f"❌ Error searching for certificate: {e}", context=get_context(self))
             return False
 
-    def __remove_cert(self, keychain: str, env: dict, askpass: Path) -> None:
+    def __remove_cert(self, keychain: str, env: dict[str, str], askpass: Path) -> None:
         if not self.cert_sha1:
             return
         if not self.__cert_exists_in_keychain(keychain):
@@ -100,8 +101,9 @@ class CertificateManager:
                 env["FIT_ASKPASS_PYTHON"] = sys.executable
                 if os.environ.get(FIT_DEBUG_ENABLED) == "1":
                     env["FIT_BOOTSTRAP_DEBUG"] = "1"
-                    env["FIT_ASKPASS_LOG"] = (
-                        Path(os.environ.get(FIT_LOG_APP_PATH)) / "macos-askpass.log"
+                    log_base = os.environ.get(FIT_LOG_APP_PATH, tempfile.gettempdir())
+                    env["FIT_ASKPASS_LOG"] = str(
+                        Path(log_base) / "macos-askpass.log"
                     )
                     env["FIT_ASKPASS_DEBUG"] = "1"
                 env["DISPLAY"] = env.get("DISPLAY", ":0")
@@ -175,8 +177,9 @@ class CertificateManager:
                 env["FIT_ASKPASS_PYTHON"] = sys.executable
                 if os.environ.get(FIT_DEBUG_ENABLED) == "1":
                     env["FIT_BOOTSTRAP_DEBUG"] = "1"
-                    env["FIT_ASKPASS_LOG"] = (
-                        Path(os.environ.get(FIT_LOG_APP_PATH)) / "macos-askpass.log"
+                    log_base = os.environ.get(FIT_LOG_APP_PATH, tempfile.gettempdir())
+                    env["FIT_ASKPASS_LOG"] = str(
+                        Path(log_base) / "macos-askpass.log"
                     )
                     env["FIT_ASKPASS_DEBUG"] = "1"
                 env["DISPLAY"] = env.get("DISPLAY", ":0")

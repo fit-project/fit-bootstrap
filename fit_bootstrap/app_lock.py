@@ -99,7 +99,7 @@ def _relax_lock_permissions(path: Path) -> None:
             user_info = pwd.getpwnam(owner)
             group_info = grp.getgrgid(user_info.pw_gid)
             os.chown(path, user_info.pw_uid, group_info.gr_gid)
-        os.chmod(path, 0o666)
+        os.chmod(path, 0o600)
     except OSError:
         pass
 
