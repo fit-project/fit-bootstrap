@@ -15,6 +15,10 @@ class BootstrapSignal(str, Enum):
     FFMPEG_NO_SCREEN_CAPTURE_DEVICE_DETECTED = (
         "ffmpeg_no_screen_capture_device_detected"
     )
+    FFMPEG_SCREEN_RECORDING_PERMISSIONS_DENIED = (
+        "ffmpeg_screen_recording_permissions_denied"
+    )
+    FFMPEG_SCREEN_RECORDING_TEST_FAILED = "ffmpeg_screen_recording_test_failed"
     ERROR = "error"
 
 

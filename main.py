@@ -1,6 +1,7 @@
 import argparse
 import atexit
 import os
+import subprocess
 import sys
 
 from fit_assets import resources  # noqa: F401
@@ -57,9 +58,7 @@ def _log_bootstrap_result(result: BootstrapResult) -> None:
         )
         platform_key = get_platform()
         help_key = _FFMPEG_HELP_KEYS.get(platform_key)
-        help_text = (
-            __translations.get(help_key, "") if help_key is not None else ""
-        )
+        help_text = __translations.get(help_key, "") if help_key is not None else ""
         if base_message and "{}" in base_message:
             dialog_message = base_message.format(help_text)
         else:
@@ -77,6 +76,40 @@ def _log_bootstrap_result(result: BootstrapResult) -> None:
             title,
             __translations.get("BOOSTSTRAP_UNSUPPORTED_OS_MESSAGE", ""),
         )
+    elif result.signal == BootstrapSignal.FFMPEG_SCREEN_RECORDING_PERMISSIONS_DENIED:
+        debug("❌ Screen recording permissions denied", context="main.fit_bootstrap")
+        show_dialog(
+            "error",
+            title,
+            __translations.get(
+                "BOOSTSTRAP_FFMPEG_SCREEN_RECORDING_PERMISSIONS_DENIED_MESSAGE", ""
+            ),
+        )
+        url = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
+        try:
+            subprocess.run(["open", url], check=False)
+        except OSError as exc:
+            debug(
+                f"❌ Unable to open System Preferences: {exc}",
+                context="main.fit_bootstrap",
+            )
+    elif result.signal == BootstrapSignal.FFMPEG_SCREEN_RECORDING_TEST_FAILED:
+        debug("❌ Screen recording test failed", context="main.fit_bootstrap")
+        show_dialog(
+            "error",
+            title,
+            __translations.get(
+                "BOOSTSTRAP_FFMPEG_SCREEN_RECORDING_TEST_FAILED_MESSAGE", ""
+            ),
+        )
+        url = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
+        try:
+            subprocess.run(["open", url], check=False)
+        except OSError as exc:
+            debug(
+                f"❌ Unable to open System Preferences: {exc}",
+                context="main.fit_bootstrap",
+            )
     else:
         debug(f"❌ Bootstrap error: {result.message}", context="main.fit_bootstrap")
         show_dialog(

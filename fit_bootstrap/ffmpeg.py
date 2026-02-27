@@ -28,10 +28,10 @@ def ensure_ffmpeg_available() -> Optional[Path]:
     ffmpeg_path = _which_ffmpeg()
     if ffmpeg_path:
         _set_env(ffmpeg_path)
-        debug(f"ffmpeg available at {ffmpeg_path}", context=_LOG_CONTEXT)
+        debug(f"✅ ffmpeg available at {ffmpeg_path}", context=_LOG_CONTEXT)
         return ffmpeg_path
 
-    debug("ffmpeg is not installed and not bundled", context=_LOG_CONTEXT)
+    debug("❌ ffmpeg is not installed and not bundled", context=_LOG_CONTEXT)
     return None
 
 
@@ -75,20 +75,20 @@ def _bundle_ffmpeg_path() -> Optional[Path]:
         if get_platform() == "macos":
             if not _ensure_quarantine_removed(candidate):
                 debug(
-                    f"quarantine check failed for {candidate}, not using bundle",
+                    f"⚠️ quarantine check failed for {candidate}, not using bundle",
                     context=_LOG_CONTEXT,
                 )
                 return None
-        debug(f"ffmpeg bundle found at {candidate}", context=_LOG_CONTEXT)
+        debug(f"✅ ffmpeg bundle found at {candidate}", context=_LOG_CONTEXT)
         return candidate
-    debug(f"No bundled ffmpeg found at {candidate}", context=_LOG_CONTEXT)
+    debug(f"ℹ️ No bundled ffmpeg found at {candidate}", context=_LOG_CONTEXT)
     return None
 
 
 def _ensure_quarantine_removed(path: Path) -> bool:
     xattr_bin = shutil.which("xattr")
     if not xattr_bin:
-        debug("xattr not available; cannot inspect quarantine flags", context=_LOG_CONTEXT)
+        debug("ℹ️ xattr not available; cannot inspect quarantine flags", context=_LOG_CONTEXT)
         return False
 
     try:
@@ -99,12 +99,12 @@ def _ensure_quarantine_removed(path: Path) -> bool:
             check=False,
         )
     except OSError as exc:
-        debug(f"failed to query quarantine attribute: {exc}", context=_LOG_CONTEXT)
+        debug(f"⚠️ failed to query quarantine attribute: {exc}", context=_LOG_CONTEXT)
         return False
 
     if proc.returncode != 0:
         debug(
-            f"quarantine attribute absent (rc={proc.returncode}); nothing to clear",
+            f"ℹ️ quarantine attribute absent (rc={proc.returncode}); nothing to clear",
             context=_LOG_CONTEXT,
         )
         return True
@@ -117,9 +117,9 @@ def _ensure_quarantine_removed(path: Path) -> bool:
     )
     if remove_proc.returncode != 0:
         debug(
-            f"unable to remove quarantine (rc={remove_proc.returncode}): {remove_proc.stderr.strip()}",
+            f"⚠️ unable to remove quarantine (rc={remove_proc.returncode}): {remove_proc.stderr.strip()}",
             context=_LOG_CONTEXT,
         )
         return False
-    debug(f"removed quarantine flag from {path}", context=_LOG_CONTEXT)
+    debug(f"✅ removed quarantine flag from {path}", context=_LOG_CONTEXT)
     return True
