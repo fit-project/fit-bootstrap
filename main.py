@@ -23,6 +23,12 @@ from fit_bootstrap.macos.proxy import MacProxyManager, ProxyState
 from fit_bootstrap.mitmproxy_runner import MitmproxyRunner
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
 
+_FFMPEG_HELP_KEYS = {
+    "macos": "BOOSTSTRAP_FFMPEG_PATH_NOT_FOUND_HELP_MACOS",
+    "win": "BOOSTSTRAP_FFMPEG_PATH_NOT_FOUND_HELP_WINDOWS",
+    "lin": "BOOSTSTRAP_FFMPEG_PATH_NOT_FOUND_HELP_LINUX",
+}
+
 
 def _log_bootstrap_result(result: BootstrapResult) -> None:
     __translations = load_translations()
@@ -43,6 +49,24 @@ def _log_bootstrap_result(result: BootstrapResult) -> None:
             title,
             __translations.get("BOOSTSTRAP_CERTIFICATE_NOT_INSTALLED_MESSAGE", ""),
         )
+    elif result.signal == BootstrapSignal.FFMPEG_PATH_NOT_FOUND:
+        debug("❌ ffmpeg path not found", context="main.fit_bootstrap")
+        base_message = __translations.get(
+            "BOOSTSTRAP_FFMPEG_PATH_NOT_FOUND_MESSAGE",
+            "",
+        )
+        platform_key = get_platform()
+        help_key = _FFMPEG_HELP_KEYS.get(platform_key)
+        help_text = (
+            __translations.get(help_key, "") if help_key is not None else ""
+        )
+        if base_message and "{}" in base_message:
+            dialog_message = base_message.format(help_text)
+        else:
+            dialog_message = base_message
+            if help_text:
+                dialog_message = f"{dialog_message}<br><br>{help_text}"
+        show_dialog("warning", title, dialog_message)
     elif result.signal == BootstrapSignal.UNSUPPORTED_OS:
         debug(
             f"❌ Unsupported operating system: {result.message}",
