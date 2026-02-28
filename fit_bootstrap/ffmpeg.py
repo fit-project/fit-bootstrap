@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -58,6 +59,12 @@ def _set_env(path: Path) -> None:
     os.environ[FIT_FFMPEG_PATH] = str(path)
 
 
+def _bundle_base_path() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(resolve_path("fit_bootstrap"))
+    return Path(__file__).resolve().parent
+
+
 def _bundle_ffmpeg_path() -> Optional[Path]:
     bin_name = "ffmpeg.exe" if get_platform() == "win" else "ffmpeg"
     platform_map = {
@@ -68,9 +75,7 @@ def _bundle_ffmpeg_path() -> Optional[Path]:
     suffix = platform_map.get(get_platform())
     if not suffix:
         return None
-    candidate = Path(
-        resolve_path(os.path.join("fit_bootstrap", "ffmpeg_binaries", suffix, bin_name))
-    )
+    candidate = _bundle_base_path() / "ffmpeg_binaries" / suffix / bin_name
     if candidate.exists():
         if get_platform() == "macos":
             if not _ensure_quarantine_removed(candidate):
