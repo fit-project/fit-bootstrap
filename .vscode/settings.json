@@ -42,5 +42,6 @@
     "source.fixAll": "explicit"
   }
 },
-"ruff.enable": true
+"ruff.enable": true,
+"python-envs.defaultEnvManager": "ms-python.python:system"
 }

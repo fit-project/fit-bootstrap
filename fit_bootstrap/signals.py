@@ -10,6 +10,15 @@ class BootstrapSignal(str, Enum):
     ADMIN_DENIED = "admin_denied"
     CERTIFICATE_NOT_INSTALLED = "certificate_not_installed"
     UNSUPPORTED_OS = "unsupported_os"
+    FFMPEG_PATH_NOT_FOUND = "ffmpeg_path_not_found"
+    FFMPEG_LIST_DEVICES_FAILED = "ffmpeg_list_devices_failed"
+    FFMPEG_NO_SCREEN_CAPTURE_DEVICE_DETECTED = (
+        "ffmpeg_no_screen_capture_device_detected"
+    )
+    FFMPEG_SCREEN_RECORDING_PERMISSIONS_DENIED = (
+        "ffmpeg_screen_recording_permissions_denied"
+    )
+    FFMPEG_SCREEN_RECORDING_TEST_FAILED = "ffmpeg_screen_recording_test_failed"
     ERROR = "error"
 
 
