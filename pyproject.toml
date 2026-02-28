@@ -16,7 +16,7 @@ include = [
 [tool.poetry.dependencies]
 python = ">=3.12,<3.14"
 
-fit-common = {git = "https://github.com/fit-project/fit-common.git", branch = "feat/ffmpeg-utils"}
+fit-common = {git = "https://github.com/fit-project/fit-common.git", branch = "main"}
 fit-assets = {git = "https://github.com/fit-project/fit-assets.git", tag = "v1.0.0-rc2"}
 
 
