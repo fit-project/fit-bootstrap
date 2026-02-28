@@ -412,8 +412,8 @@ xhtml2pdf = "^0.2.17"
 [package.source]
 type = "git"
 url = "https://github.com/fit-project/fit-common.git"
-reference = "feat/ffmpeg-utils"
-resolved_reference = "e72b70d37ee57ffe8f710b97de02dd757873e57e"
+reference = "main"
+resolved_reference = "020afdd35950b0532c322eae5f78df8257c469a2"
 
 [[package]]
 name = "freetype-py"
@@ -1782,4 +1782,4 @@ test = ["coverage (>=5.3)", "tomli (>=2.0.1) ; python_version < \"3.11\"", "tox"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.14"
-content-hash = "f507f46666b47455f35f78bd6d58306aff7e58231d6d645fe6977baf4ad8d497"
+content-hash = "de5bc22e3b40757f019d965e711155434faa0aa066fe679ec2c239283ee8cd4c"
