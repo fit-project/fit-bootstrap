@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import subprocess
-import sys
 
 from fit_common.core import debug, get_context
 from fit_common.core.ffmpeg import (
@@ -15,7 +14,6 @@ from fit_common.core.ffmpeg import (
     get_list_devices,
     permission_was_denied,
 )
-from PySide6.QtWidgets import QApplication
 
 from fit_bootstrap.ffmpeg import get_ffmpeg_path
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
@@ -24,7 +22,6 @@ from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
 class PermissionChecker:
     def __init__(self) -> None:
         self._ffmpeg_path = get_ffmpeg_path()
-        self._qt_app = self._ensure_qt_app()
 
     def run(self) -> BootstrapResult:
 
@@ -129,34 +126,3 @@ class PermissionChecker:
 
     def _permission_was_denied(self, output: str) -> bool:
         return permission_was_denied(output)
-
-    def _open_privacy_settings(self) -> None:
-        url = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
-        try:
-            subprocess.run(["open", url], check=False)
-        except OSError as exc:
-            debug(
-                f"❌ Unable to open System Preferences: {exc}",
-                context=get_context(self),
-            )
-
-    def _ensure_qt_app(self) -> QApplication | None:
-        app = QApplication.instance()
-        if app:
-            return app
-        try:
-            return QApplication(sys.argv)
-        except Exception as exc:
-            debug(f"❌ Unable to create QApplication: {exc}", context=_LOG_CONTEXT)
-            return None
-
-
-def main() -> int:
-    app = QApplication(sys.argv)
-    checker = PermissionChecker()
-    result = checker.run()
-    return 0 if result.code == 0 else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

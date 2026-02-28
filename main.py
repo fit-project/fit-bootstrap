@@ -1,7 +1,6 @@
 import argparse
 import atexit
 import os
-import subprocess
 import sys
 
 from fit_assets import resources  # noqa: F401
@@ -11,6 +10,7 @@ from fit_common.core import (
     get_platform,
     is_admin,
     is_bundled,
+    open_macos_privacy_settings,
     set_debug_level,
 )
 from fit_common.gui.utils import show_dialog
@@ -85,14 +85,7 @@ def _log_bootstrap_result(result: BootstrapResult) -> None:
                 "BOOSTSTRAP_FFMPEG_SCREEN_RECORDING_PERMISSIONS_DENIED_MESSAGE", ""
             ),
         )
-        url = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
-        try:
-            subprocess.run(["open", url], check=False)
-        except OSError as exc:
-            debug(
-                f"❌ Unable to open System Preferences: {exc}",
-                context="main.fit_bootstrap",
-            )
+        open_macos_privacy_settings()
     elif result.signal == BootstrapSignal.FFMPEG_SCREEN_RECORDING_TEST_FAILED:
         debug("❌ Screen recording test failed", context="main.fit_bootstrap")
         show_dialog(
@@ -102,14 +95,7 @@ def _log_bootstrap_result(result: BootstrapResult) -> None:
                 "BOOSTSTRAP_FFMPEG_SCREEN_RECORDING_TEST_FAILED_MESSAGE", ""
             ),
         )
-        url = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
-        try:
-            subprocess.run(["open", url], check=False)
-        except OSError as exc:
-            debug(
-                f"❌ Unable to open System Preferences: {exc}",
-                context="main.fit_bootstrap",
-            )
+        open_macos_privacy_settings()
     else:
         debug(f"❌ Bootstrap error: {result.message}", context="main.fit_bootstrap")
         show_dialog(

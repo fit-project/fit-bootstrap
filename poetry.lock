@@ -413,7 +413,7 @@ xhtml2pdf = "^0.2.17"
 type = "git"
 url = "https://github.com/fit-project/fit-common.git"
 reference = "feat/ffmpeg-utils"
-resolved_reference = "888b1581405234752203e65d98fb52a81b51d52b"
+resolved_reference = "e72b70d37ee57ffe8f710b97de02dd757873e57e"
 
 [[package]]
 name = "freetype-py"
