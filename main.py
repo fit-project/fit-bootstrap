@@ -49,22 +49,6 @@ def _log_bootstrap_result(result: BootstrapResult) -> None:
             title,
             __translations.get("BOOSTSTRAP_CERTIFICATE_NOT_INSTALLED_MESSAGE", ""),
         )
-    elif result.signal == BootstrapSignal.SCREEN_RECODER_PATH_NOT_FOUND:
-        debug("❌ fit-screen-recoder path not found", context="main.fit_bootstrap")
-        base_message = __translations.get(
-            "BOOSTSTRAP_SCREEN_RECODER_PATH_NOT_FOUND_MESSAGE",
-            "",
-        )
-        platform_key = get_platform()
-        help_key = _SCREEN_RECODER_HELP_KEYS.get(platform_key)
-        help_text = __translations.get(help_key, "") if help_key is not None else ""
-        if base_message and "{}" in base_message:
-            dialog_message = base_message.format(help_text)
-        else:
-            dialog_message = base_message
-            if help_text:
-                dialog_message = f"{dialog_message}<br><br>{help_text}"
-        show_dialog("warning", title, dialog_message)
     elif result.signal == BootstrapSignal.UNSUPPORTED_OS:
         debug(
             f"❌ Unsupported operating system: {result.message}",
@@ -77,12 +61,7 @@ def _log_bootstrap_result(result: BootstrapResult) -> None:
         )
     else:
         debug(f"❌ Bootstrap error: {result.message}", context="main.fit_bootstrap")
-        show_dialog(
-            "error",
-            title,
-            __translations.get("BOOSTSTRAP_UNKNOW_ERROR_MSG", "")
-            + f"<br><br>{result.message}",
-        )
+        show_dialog("error", title, result.message)
 
 
 def parse_args() -> argparse.Namespace:

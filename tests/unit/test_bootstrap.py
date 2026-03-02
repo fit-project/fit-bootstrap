@@ -95,6 +95,11 @@ def test_dispatch_returns_certificate_failure_when_install_fails(
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "macos")
     monkeypatch.setattr(
         bootstrap_module,
+        "ensure_supported_os_configuration",
+        lambda _context: None,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
         "ensure_screen_recoder_available",
         lambda: Path("/tmp/fit-screen-recoder"),
     )
@@ -127,6 +132,11 @@ def test_dispatch_macos_relaunches_and_resolves_script_path(
 ) -> None:
     _patch_bootstrap_init_dependencies(monkeypatch)
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "macos")
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_supported_os_configuration",
+        lambda _context: None,
+    )
     monkeypatch.setattr(
         bootstrap_module,
         "ensure_screen_recoder_available",
@@ -180,6 +190,11 @@ def test_dispatch_returns_admin_denied_on_failed_relaunch(
 ) -> None:
     _patch_bootstrap_init_dependencies(monkeypatch)
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "macos")
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_supported_os_configuration",
+        lambda _context: None,
+    )
     monkeypatch.setattr(
         bootstrap_module,
         "ensure_screen_recoder_available",
@@ -238,6 +253,11 @@ def test_run_common_checks_returns_error_when_screen_recoder_missing(
     _patch_bootstrap_init_dependencies(monkeypatch)
     monkeypatch.setattr(
         bootstrap_module,
+        "ensure_supported_os_configuration",
+        lambda _context: None,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
         "ensure_screen_recoder_available",
         lambda: None,
     )
@@ -251,3 +271,29 @@ def test_run_common_checks_returns_error_when_screen_recoder_missing(
     assert result is not None
     assert result.code == 1
     assert result.signal == BootstrapSignal.SCREEN_RECODER_PATH_NOT_FOUND
+
+
+@pytest.mark.unit
+def test_run_common_checks_returns_error_when_os_requirements_not_met(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_bootstrap_init_dependencies(monkeypatch)
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_supported_os_configuration",
+        lambda _context: BootstrapResult(
+            code=1,
+            signal=BootstrapSignal.OS_REQUIREMENTS_NOT_MET,
+            message="FIT requires macOS 15 or later on arm64.",
+        ),
+    )
+
+    result = bootstrap_module.Bootstrap()._run_common_checks(
+        argv=["main.py"],
+        stage_env="FIT_BOOTSTRAP_STAGE",
+        stage_gui="gui",
+    )
+
+    assert result is not None
+    assert result.code == 1
+    assert result.signal == BootstrapSignal.OS_REQUIREMENTS_NOT_MET

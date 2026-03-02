@@ -32,7 +32,9 @@ from fit_bootstrap.constants import (
     FIT_VERSION,
 )
 from fit_bootstrap.context import AcquisitionContext
+from fit_bootstrap.lang import load_translations
 from fit_bootstrap.macos.bootstrap import MacBootstrap
+from fit_bootstrap.os_requirements import ensure_supported_os_configuration
 from fit_bootstrap.privilege import ensure_root_or_relaunch
 from fit_bootstrap.screen_recorder import ensure_screen_recoder_available
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal, SignalHandler
@@ -58,6 +60,8 @@ class Bootstrap:
         os.environ[FIT_USER_SYSTEM_LANG] = get_system_lang()
         os.environ[FIT_EXECUTION_ENV] = "LOCAL_PC"
         os.environ[FIT_VERSION] = get_version()
+
+        self.__translations = load_translations()
 
         self._apply_caller_profile()
 
@@ -118,16 +122,20 @@ class Bootstrap:
             return BootstrapResult(
                 code=1,
                 signal=BootstrapSignal.ERROR,
-                message="Missing bootstrap parameters",
+                message=self.__translations.get(
+                    "BOOSTSTRAP_MISSING_PARAMETERS_MESSAGE", ""
+                ),
             )
 
-        screen_recorder_path = ensure_screen_recoder_available()
-        if screen_recorder_path is None:
-            return BootstrapResult(
-                code=1,
-                signal=BootstrapSignal.SCREEN_RECODER_PATH_NOT_FOUND,
-                message="fit-screen-recoder bundle not found",
-            )
+        os_requirements_result = ensure_supported_os_configuration(
+            self.acquisition_context
+        )
+        if os_requirements_result is not None:
+            return os_requirements_result
+
+        screen_recorder_result = ensure_screen_recoder_available()
+        if screen_recorder_result is not None:
+            return screen_recorder_result
 
         return None
 

@@ -7,30 +7,56 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 from fit_common.core import debug, get_platform, resolve_path
 
 from fit_bootstrap.constants import FIT_SCREEN_RECODER_PATH
+from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
 
 _LOG_CONTEXT = "fit_bootstrap.screen_recorder"
 
+from fit_bootstrap.lang import load_translations
 
-def ensure_screen_recoder_available() -> Optional[Path]:
+_SCREEN_RECODER_HELP_KEYS = {
+    "macos": "BOOSTSTRAP_SCREEN_RECODER_PATH_NOT_FOUND_HELP_MACOS",
+    "win": "BOOSTSTRAP_SCREEN_RECODER_PATH_NOT_FOUND_HELP_WINDOWS",
+    "lin": "BOOSTSTRAP_SCREEN_RECODER_PATH_NOT_FOUND_HELP_LINUX",
+}
+
+
+def ensure_screen_recoder_available() -> BootstrapResult | None:
     recorder_path = _env_path()
     if recorder_path and recorder_path.exists():
-        return recorder_path
+        return None
 
     recorder_path = _bundle_screen_recorder_path()
     if recorder_path:
         _set_env(recorder_path)
-        return recorder_path
+        return None
 
     debug("❌ fit-screen-recoder bundle not found", context=_LOG_CONTEXT)
-    return None
+    __translations = load_translations()
+    base_message = __translations.get(
+        "BOOSTSTRAP_SCREEN_RECODER_PATH_NOT_FOUND_MESSAGE",
+        "",
+    )
+    platform_key = get_platform()
+    help_key = _SCREEN_RECODER_HELP_KEYS.get(platform_key)
+    help_text = __translations.get(help_key, "") if help_key is not None else ""
+    if base_message and "{}" in base_message:
+        dialog_message = base_message.format(help_text)
+    else:
+        dialog_message = base_message
+        if help_text:
+            dialog_message = f"{dialog_message}<br><br>{help_text}"
+    return BootstrapResult(
+        code=1,
+        signal=BootstrapSignal.ERROR,
+        message=dialog_message,
+    )
 
 
-def _env_path() -> Optional[Path]:
+def _env_path() -> Path | None:
     value = os.environ.get(FIT_SCREEN_RECODER_PATH)
     if not value:
         return None
@@ -47,7 +73,7 @@ def _bundle_base_path() -> Path:
     return Path(__file__).resolve().parent
 
 
-def _bundle_screen_recorder_path() -> Optional[Path]:
+def _bundle_screen_recorder_path() -> Path | None:
     platform_map = {
         "macos": "macos_arm64",
         "lin": "linux_x86_64",

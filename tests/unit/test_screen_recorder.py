@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from fit_bootstrap import screen_recorder as screen_recorder_module
+from fit_bootstrap.signals import BootstrapSignal
 
 
 @pytest.mark.unit
@@ -17,9 +18,9 @@ def test_ensure_screen_recoder_available_returns_existing_env_path(
     existing.write_text("ok")
     monkeypatch.setenv("FIT_SCREEN_RECODER_PATH", str(existing))
 
-    resolved = screen_recorder_module.ensure_screen_recoder_available()
+    result = screen_recorder_module.ensure_screen_recoder_available()
 
-    assert resolved == existing
+    assert result is None
 
 
 @pytest.mark.unit
@@ -39,14 +40,14 @@ def test_ensure_screen_recoder_available_sets_env_for_macos_bundle(
         lambda path: path == binary,
     )
 
-    resolved = screen_recorder_module.ensure_screen_recoder_available()
+    result = screen_recorder_module.ensure_screen_recoder_available()
 
-    assert resolved == binary
+    assert result is None
     assert os.environ["FIT_SCREEN_RECODER_PATH"] == str(binary)
 
 
 @pytest.mark.unit
-def test_ensure_screen_recoder_available_returns_none_when_bundle_missing(
+def test_ensure_screen_recoder_available_returns_error_when_bundle_missing(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -54,6 +55,7 @@ def test_ensure_screen_recoder_available_returns_none_when_bundle_missing(
     monkeypatch.setattr(screen_recorder_module, "get_platform", lambda: "lin")
     monkeypatch.setattr(screen_recorder_module, "_bundle_base_path", lambda: tmp_path)
 
-    resolved = screen_recorder_module.ensure_screen_recoder_available()
+    result = screen_recorder_module.ensure_screen_recoder_available()
 
-    assert resolved is None
+    assert result is not None
+    assert result.signal == BootstrapSignal.SCREEN_RECODER_PATH_NOT_FOUND
