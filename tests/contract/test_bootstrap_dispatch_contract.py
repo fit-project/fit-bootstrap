@@ -75,7 +75,12 @@ def test_dispatch_admin_denied_contract(monkeypatch: pytest.MonkeyPatch) -> None
                     code=0,
                     signal=BootstrapSignal.OK,
                     message=None,
-                )
+                ),
+                "ensure_permissions": lambda self: BootstrapResult(
+                    code=0,
+                    signal=BootstrapSignal.OK,
+                    message=None,
+                ),
             },
         )(),
     )

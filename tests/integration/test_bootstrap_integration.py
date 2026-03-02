@@ -52,7 +52,12 @@ def test_dispatch_macos_success_calls_signal_handler(
                     code=0,
                     signal=BootstrapSignal.OK,
                     message=None,
-                )
+                ),
+                "ensure_permissions": lambda self: BootstrapResult(
+                    code=0,
+                    signal=BootstrapSignal.OK,
+                    message=None,
+                ),
             },
         )(),
     )
@@ -104,7 +109,12 @@ def test_dispatch_macos_certificate_failure_short_circuits(
                     code=1,
                     signal=BootstrapSignal.CERTIFICATE_NOT_INSTALLED,
                     message="cert failed",
-                )
+                ),
+                "ensure_permissions": lambda self: BootstrapResult(
+                    code=0,
+                    signal=BootstrapSignal.OK,
+                    message=None,
+                ),
             },
         )(),
     )

@@ -156,9 +156,9 @@ class Bootstrap:
         if cert_result.code != 0:
             return cert_result
 
-        # permission_result = mac_bootstrap.ensure_permissions()
-        # if permission_result.code != 0:
-        #     return permission_result
+        permission_result = mac_bootstrap.ensure_permissions()
+        if permission_result.code != 0:
+            return permission_result
 
         if is_bundled():
             relaunch_argv = list(argv[1:])

@@ -114,7 +114,12 @@ def test_dispatch_returns_certificate_failure_when_install_fails(
                     code=1,
                     signal=BootstrapSignal.CERTIFICATE_NOT_INSTALLED,
                     message="cert failed",
-                )
+                ),
+                "ensure_permissions": lambda self: BootstrapResult(
+                    code=0,
+                    signal=BootstrapSignal.OK,
+                    message=None,
+                ),
             },
         )(),
     )
@@ -154,7 +159,12 @@ def test_dispatch_macos_relaunches_and_resolves_script_path(
                     code=0,
                     signal=BootstrapSignal.OK,
                     message=None,
-                )
+                ),
+                "ensure_permissions": lambda self: BootstrapResult(
+                    code=0,
+                    signal=BootstrapSignal.OK,
+                    message=None,
+                ),
             },
         )(),
     )
@@ -212,7 +222,12 @@ def test_dispatch_returns_admin_denied_on_failed_relaunch(
                     code=0,
                     signal=BootstrapSignal.OK,
                     message=None,
-                )
+                ),
+                "ensure_permissions": lambda self: BootstrapResult(
+                    code=0,
+                    signal=BootstrapSignal.OK,
+                    message=None,
+                ),
             },
         )(),
     )
