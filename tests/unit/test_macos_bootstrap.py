@@ -35,8 +35,11 @@ def test_install_certificate_returns_specific_signal_on_failure(
     result = macos_bootstrap_module.MacBootstrap().install_certificate()
 
     assert result.code == 1
-    assert result.signal == BootstrapSignal.CERTIFICATE_NOT_INSTALLED
-    assert result.message == "Certificate installation failed"
+    assert result.signal == BootstrapSignal.ERROR
+    assert result.message == (
+        "Installazione del certificato MITMPROXY fallita.<br><br>"
+        "<strong style=\"color:red\">FIT non può essere eseguita senza questo certificato.</strong>"
+    )
 
 
 @pytest.mark.unit

@@ -16,7 +16,7 @@ def test_permission_checker_returns_error_when_denied(
     monkeypatch.setattr(
         "fit_bootstrap.macos.permission.load_translations",
         lambda: {
-            "BOOSTSTRAP_FFMPEG_SCREEN_RECORDING_PERMISSIONS_DENIED_MESSAGE": "denied"
+            "BOOSTSTRAP_MACOS_SCREEN_RECORDING_PERMISSIONS_DENIED_MESSAGE": "denied"
         },
     )
     monkeypatch.setattr(

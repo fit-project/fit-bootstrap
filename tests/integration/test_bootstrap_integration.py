@@ -43,12 +43,22 @@ def test_dispatch_macos_success_calls_signal_handler(
     monkeypatch.setattr(bootstrap_module, "is_bundled", lambda: False)
     monkeypatch.setattr(
         bootstrap_module,
+        "ensure_supported_os_configuration",
+        lambda _context: None,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_screen_recoder_available",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
         "MacBootstrap",
         lambda: type(
             "_B",
             (),
             {
-                "install_certificate": lambda self: BootstrapResult(  # noqa: ARG005
+                "install_certificate": lambda self: BootstrapResult(
                     code=0,
                     signal=BootstrapSignal.OK,
                     message=None,
@@ -100,14 +110,24 @@ def test_dispatch_macos_certificate_failure_short_circuits(
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "macos")
     monkeypatch.setattr(
         bootstrap_module,
+        "ensure_supported_os_configuration",
+        lambda _context: None,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_screen_recoder_available",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
         "MacBootstrap",
         lambda: type(
             "_B",
             (),
             {
-                "install_certificate": lambda self: BootstrapResult(  # noqa: ARG005
+                "install_certificate": lambda self: BootstrapResult(
                     code=1,
-                    signal=BootstrapSignal.CERTIFICATE_NOT_INSTALLED,
+                    signal=BootstrapSignal.ERROR,
                     message="cert failed",
                 ),
                 "ensure_permissions": lambda self: BootstrapResult(
@@ -133,5 +153,5 @@ def test_dispatch_macos_certificate_failure_short_circuits(
         stage_gui="gui",
     )
 
-    assert result.signal == BootstrapSignal.CERTIFICATE_NOT_INSTALLED
+    assert result.signal == BootstrapSignal.ERROR
     assert called == []

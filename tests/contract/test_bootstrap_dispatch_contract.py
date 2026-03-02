@@ -34,29 +34,38 @@ def _patch_bootstrap_init_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.contract
-@pytest.mark.parametrize(
-    ("platform", "expected_signal", "expected_message"),
-    [
-        ("win", BootstrapSignal.UNSUPPORTED_OS, "Windows is not supported yet"),
-        ("lin", BootstrapSignal.UNSUPPORTED_OS, "Linux is not supported yet"),
-    ],
-)
+@pytest.mark.parametrize("platform", ["win", "lin"])
 def test_dispatch_unsupported_platform_contract(
     platform: str,
-    expected_signal: BootstrapSignal,
-    expected_message: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _patch_bootstrap_init_dependencies(monkeypatch)
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_supported_os_configuration",
+        lambda _context: None,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_screen_recoder_available",
+        lambda: None,
+    )
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: platform)
     bootstrap = bootstrap_module.Bootstrap(caller=CallerProfile.FIT)
 
-    result = bootstrap._dispatch()
+    result = bootstrap._dispatch(
+        argv=["main.py"],
+        stage_env="FIT_BOOTSTRAP_STAGE",
+        stage_gui="gui",
+    )
 
     assert isinstance(result, BootstrapResult)
     assert result.code == 1
-    assert result.signal == expected_signal
-    assert result.message == expected_message
+    assert result.signal == BootstrapSignal.ERROR
+    assert result.message == (
+        "Unsupported operating system. <br><br>"
+        "<strong style=\"color:red\">FIT is only compatible with macOS, Windows and Linux.</strong>"
+    )
 
 
 @pytest.mark.contract
@@ -71,7 +80,7 @@ def test_dispatch_admin_denied_contract(monkeypatch: pytest.MonkeyPatch) -> None
             "_B",
             (),
             {
-                "install_certificate": lambda self: BootstrapResult(  # noqa: ARG005
+                "install_certificate": lambda self: BootstrapResult(
                     code=0,
                     signal=BootstrapSignal.OK,
                     message=None,
@@ -89,6 +98,16 @@ def test_dispatch_admin_denied_contract(monkeypatch: pytest.MonkeyPatch) -> None
         "ensure_root_or_relaunch",
         lambda *_a, **_k: 1,
     )
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_supported_os_configuration",
+        lambda _context: None,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_screen_recoder_available",
+        lambda: None,
+    )
     bootstrap = bootstrap_module.Bootstrap(caller=CallerProfile.FIT)
 
     result = bootstrap._dispatch(
@@ -99,5 +118,8 @@ def test_dispatch_admin_denied_contract(monkeypatch: pytest.MonkeyPatch) -> None
 
     assert isinstance(result, BootstrapResult)
     assert result.code == 1
-    assert result.signal == BootstrapSignal.ADMIN_DENIED
-    assert result.message == "Elevation failed"
+    assert result.signal == BootstrapSignal.ERROR
+    assert result.message == (
+        "Privileges denied for root.<br><br>"
+        "<strong style=\"color:red\">FIT cannot run without root privileges.</strong>"
+    )

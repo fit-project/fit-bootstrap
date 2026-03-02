@@ -84,7 +84,7 @@ def test_dispatch_macos_requires_bootstrap_parameters(
 
     assert result.code == 1
     assert result.signal == BootstrapSignal.ERROR
-    assert result.message == "Missing macOS bootstrap parameters"
+    assert result.message == "Parametri di bootstrap mancanti"
 
 
 @pytest.mark.unit
@@ -101,7 +101,7 @@ def test_dispatch_returns_certificate_failure_when_install_fails(
     monkeypatch.setattr(
         bootstrap_module,
         "ensure_screen_recoder_available",
-        lambda: Path("/tmp/fit-screen-recoder"),
+        lambda: None,
     )
     monkeypatch.setattr(
         bootstrap_module,
@@ -110,9 +110,9 @@ def test_dispatch_returns_certificate_failure_when_install_fails(
             "_B",
             (),
             {
-                "install_certificate": lambda self: BootstrapResult(  # noqa: ARG005
+                "install_certificate": lambda self: BootstrapResult(
                     code=1,
-                    signal=BootstrapSignal.CERTIFICATE_NOT_INSTALLED,
+                    signal=BootstrapSignal.ERROR,
                     message="cert failed",
                 ),
                 "ensure_permissions": lambda self: BootstrapResult(
@@ -127,7 +127,7 @@ def test_dispatch_returns_certificate_failure_when_install_fails(
     bootstrap = bootstrap_module.Bootstrap(caller=CallerProfile.FIT)
     result = bootstrap._dispatch(argv=["main.py"], stage_env="S", stage_gui="G")
 
-    assert result.signal == BootstrapSignal.CERTIFICATE_NOT_INSTALLED
+    assert result.signal == BootstrapSignal.ERROR
     assert result.code == 1
 
 
@@ -145,7 +145,7 @@ def test_dispatch_macos_relaunches_and_resolves_script_path(
     monkeypatch.setattr(
         bootstrap_module,
         "ensure_screen_recoder_available",
-        lambda: Path("/tmp/fit-screen-recoder"),
+        lambda: None,
     )
     monkeypatch.setattr(bootstrap_module, "is_bundled", lambda: False)
     monkeypatch.setattr(
@@ -155,7 +155,7 @@ def test_dispatch_macos_relaunches_and_resolves_script_path(
             "_B",
             (),
             {
-                "install_certificate": lambda self: BootstrapResult(  # noqa: ARG005
+                "install_certificate": lambda self: BootstrapResult(
                     code=0,
                     signal=BootstrapSignal.OK,
                     message=None,
@@ -191,7 +191,6 @@ def test_dispatch_macos_relaunches_and_resolves_script_path(
     env = captured["env"]  # type: ignore[assignment]
     assert env["FIT_BOOTSTRAP_STAGE"] == "gui"  # type: ignore[index]
     assert env["FIT_MITM_PORT"] == "9080"  # type: ignore[index]
-    assert env["FIT_SCREEN_RECODER_PATH"] == "/tmp/fit-screen-recoder"  # type: ignore[index]
 
 
 @pytest.mark.unit
@@ -208,7 +207,7 @@ def test_dispatch_returns_admin_denied_on_failed_relaunch(
     monkeypatch.setattr(
         bootstrap_module,
         "ensure_screen_recoder_available",
-        lambda: Path("/tmp/fit-screen-recoder"),
+        lambda: None,
     )
     monkeypatch.setattr(bootstrap_module, "is_bundled", lambda: True)
     monkeypatch.setattr(
@@ -218,7 +217,7 @@ def test_dispatch_returns_admin_denied_on_failed_relaunch(
             "_B",
             (),
             {
-                "install_certificate": lambda self: BootstrapResult(  # noqa: ARG005
+                "install_certificate": lambda self: BootstrapResult(
                     code=0,
                     signal=BootstrapSignal.OK,
                     message=None,
@@ -243,8 +242,11 @@ def test_dispatch_returns_admin_denied_on_failed_relaunch(
     )
 
     assert result.code == 1
-    assert result.signal == BootstrapSignal.ADMIN_DENIED
-    assert result.message == "Elevation failed"
+    assert result.signal == BootstrapSignal.ERROR
+    assert result.message == (
+        "Accesso ai privilegi di root negato.<br><br>"
+        "<strong style=\"color:red\">FIT non può essere eseguita senza privilegi root.</strong>"
+    )
 
 
 @pytest.mark.unit
@@ -253,12 +255,40 @@ def test_dispatch_returns_unsupported_for_non_macos(
 ) -> None:
     _patch_bootstrap_init_dependencies(monkeypatch)
     bootstrap = bootstrap_module.Bootstrap(caller=CallerProfile.FIT)
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_supported_os_configuration",
+        lambda _context: None,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_screen_recoder_available",
+        lambda: None,
+    )
 
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "win")
-    assert bootstrap._dispatch().signal == BootstrapSignal.UNSUPPORTED_OS
+    result = bootstrap._dispatch(
+        argv=["main.py"],
+        stage_env="FIT_BOOTSTRAP_STAGE",
+        stage_gui="gui",
+    )
+    assert result.signal == BootstrapSignal.ERROR
+    assert result.message == (
+        "Sistema operativo non supportato. <br><br>"
+        "<strong style=\"color:red\">FIT è compatibile solo con macOS, Windows e Linux.</strong>"
+    )
 
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "lin")
-    assert bootstrap._dispatch().signal == BootstrapSignal.UNSUPPORTED_OS
+    result = bootstrap._dispatch(
+        argv=["main.py"],
+        stage_env="FIT_BOOTSTRAP_STAGE",
+        stage_gui="gui",
+    )
+    assert result.signal == BootstrapSignal.ERROR
+    assert result.message == (
+        "Sistema operativo non supportato. <br><br>"
+        "<strong style=\"color:red\">FIT è compatibile solo con macOS, Windows e Linux.</strong>"
+    )
 
 
 @pytest.mark.unit
@@ -274,7 +304,11 @@ def test_run_common_checks_returns_error_when_screen_recoder_missing(
     monkeypatch.setattr(
         bootstrap_module,
         "ensure_screen_recoder_available",
-        lambda: None,
+        lambda: BootstrapResult(
+            code=1,
+            signal=BootstrapSignal.ERROR,
+            message="screen recorder missing",
+        ),
     )
 
     result = bootstrap_module.Bootstrap()._run_common_checks(
@@ -285,7 +319,7 @@ def test_run_common_checks_returns_error_when_screen_recoder_missing(
 
     assert result is not None
     assert result.code == 1
-    assert result.signal == BootstrapSignal.SCREEN_RECODER_PATH_NOT_FOUND
+    assert result.signal == BootstrapSignal.ERROR
 
 
 @pytest.mark.unit
@@ -298,7 +332,7 @@ def test_run_common_checks_returns_error_when_os_requirements_not_met(
         "ensure_supported_os_configuration",
         lambda _context: BootstrapResult(
             code=1,
-            signal=BootstrapSignal.OS_REQUIREMENTS_NOT_MET,
+            signal=BootstrapSignal.ERROR,
             message="FIT requires macOS 15 or later on arm64.",
         ),
     )
@@ -311,4 +345,4 @@ def test_run_common_checks_returns_error_when_os_requirements_not_met(
 
     assert result is not None
     assert result.code == 1
-    assert result.signal == BootstrapSignal.OS_REQUIREMENTS_NOT_MET
+    assert result.signal == BootstrapSignal.ERROR

@@ -39,6 +39,19 @@ from fit_bootstrap.screen_recorder import ensure_screen_recoder_available
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal, SignalHandler
 
 
+def _prepend_path_entry(path_value: str, entry: str) -> str:
+    if not entry:
+        return path_value or ""
+    entry_norm = os.path.normcase(os.path.normpath(entry))
+    parts = [
+        part
+        for part in (path_value or "").split(os.pathsep)
+        if part and os.path.normcase(os.path.normpath(part)) != entry_norm
+    ]
+    normalized_entry = os.path.normpath(entry)
+    return os.pathsep.join([normalized_entry] + parts) if parts else normalized_entry
+
+
 class Bootstrap:
     def __init__(
         self,
@@ -85,6 +98,9 @@ class Bootstrap:
     ) -> BootstrapResult:
         result = self._run_common_checks(argv, stage_env, stage_gui)
         if result is None:
+            assert argv is not None
+            assert stage_env is not None
+            assert stage_gui is not None
             platform = get_platform()
             if platform == "macos":
                 result = self._dispatch_macos(argv, stage_env, stage_gui)
@@ -172,11 +188,17 @@ class Bootstrap:
             if relaunch_argv:
                 relaunch_argv[0] = str(Path(relaunch_argv[0]).resolve())
 
+        screen_recorder_dir = str(
+            Path(os.environ.get(FIT_SCREEN_RECODER_PATH, "")).parent
+        )
         relaunch_code = ensure_root_or_relaunch(
             relaunch_argv,
             env_overrides={
                 stage_env: stage_gui,
-                "PATH": os.environ.get("PATH", ""),
+                "PATH": _prepend_path_entry(
+                    os.environ.get("PATH", ""),
+                    screen_recorder_dir,
+                ),
                 FIT_DEBUG_ENABLED: os.environ.get(FIT_DEBUG_ENABLED, "0"),
                 FIT_USER_APP_PATH: os.environ.get(FIT_USER_APP_PATH, ""),
                 FIT_LOG_APP_PATH: os.environ.get(FIT_LOG_APP_PATH, ""),

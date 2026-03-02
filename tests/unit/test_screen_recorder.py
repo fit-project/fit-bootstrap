@@ -58,4 +58,4 @@ def test_ensure_screen_recoder_available_returns_error_when_bundle_missing(
     result = screen_recorder_module.ensure_screen_recoder_available()
 
     assert result is not None
-    assert result.signal == BootstrapSignal.SCREEN_RECODER_PATH_NOT_FOUND
+    assert result.signal == BootstrapSignal.ERROR

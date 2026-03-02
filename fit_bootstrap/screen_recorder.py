@@ -11,11 +11,10 @@ from pathlib import Path
 from fit_common.core import debug, get_platform, resolve_path
 
 from fit_bootstrap.constants import FIT_SCREEN_RECODER_PATH
+from fit_bootstrap.lang import load_translations
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
 
 _LOG_CONTEXT = "fit_bootstrap.screen_recorder"
-
-from fit_bootstrap.lang import load_translations
 
 _SCREEN_RECODER_HELP_KEYS = {
     "macos": "BOOSTSTRAP_SCREEN_RECODER_PATH_NOT_FOUND_HELP_MACOS",

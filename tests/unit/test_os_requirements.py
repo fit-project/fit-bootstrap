@@ -52,7 +52,7 @@ def test_ensure_supported_os_configuration_rejects_old_macos(
     )
 
     assert result is not None
-    assert result.signal == BootstrapSignal.OS_REQUIREMENTS_NOT_MET
+    assert result.signal == BootstrapSignal.ERROR
 
 
 @pytest.mark.unit
@@ -71,4 +71,4 @@ def test_ensure_supported_os_configuration_rejects_non_arm64_macos(
     )
 
     assert result is not None
-    assert result.signal == BootstrapSignal.OS_REQUIREMENTS_NOT_MET
+    assert result.signal == BootstrapSignal.ERROR
