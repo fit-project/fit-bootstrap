@@ -35,30 +35,6 @@ def _log_bootstrap_result(result: BootstrapResult) -> None:
     title = __translations.get("BOOSTSTRAP_ERROR_DIALOG_TITLE")
     if result.signal == BootstrapSignal.OK:
         debug("✅ Bootstrap completed", context="main.fit_bootstrap")
-    elif result.signal == BootstrapSignal.ADMIN_DENIED:
-        debug("❌ Admin permissions denied", context="main.fit_bootstrap")
-        admin_type = "administrator" if get_platform() == "win" else "root"
-        message = __translations.get("BOOSTSTRAP_ADMIN_DENIED_MESSAGE", "").format(
-            admin_type, admin_type
-        )
-        show_dialog("error", title, message, "")
-    elif result.signal == BootstrapSignal.CERTIFICATE_NOT_INSTALLED:
-        debug("❌ Certificate installation failed", context="main.fit_bootstrap")
-        show_dialog(
-            "error",
-            title,
-            __translations.get("BOOSTSTRAP_CERTIFICATE_NOT_INSTALLED_MESSAGE", ""),
-        )
-    elif result.signal == BootstrapSignal.UNSUPPORTED_OS:
-        debug(
-            f"❌ Unsupported operating system: {result.message}",
-            context="main.fit_bootstrap",
-        )
-        show_dialog(
-            "error",
-            title,
-            __translations.get("BOOSTSTRAP_UNSUPPORTED_OS_MESSAGE", ""),
-        )
     else:
         debug(f"❌ Bootstrap error: {result.message}", context="main.fit_bootstrap")
         show_dialog("error", title, result.message)

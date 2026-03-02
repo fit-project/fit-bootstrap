@@ -1,5 +1,4 @@
 import os
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -92,20 +91,26 @@ class Bootstrap:
             elif platform == "win":
                 result = BootstrapResult(
                     code=1,
-                    signal=BootstrapSignal.UNSUPPORTED_OS,
-                    message="Windows is not supported yet",
+                    signal=BootstrapSignal.ERROR,
+                    message=self.__translations.get(
+                        "BOOSTSTRAP_UNSUPPORTED_OS_MESSAGE", ""
+                    ),
                 )
             elif platform == "lin":
                 result = BootstrapResult(
                     code=1,
-                    signal=BootstrapSignal.UNSUPPORTED_OS,
-                    message="Linux is not supported yet",
+                    signal=BootstrapSignal.ERROR,
+                    message=self.__translations.get(
+                        "BOOSTSTRAP_UNSUPPORTED_OS_MESSAGE", ""
+                    ),
                 )
             else:
                 result = BootstrapResult(
                     code=1,
-                    signal=BootstrapSignal.UNSUPPORTED_OS,
-                    message=f"Unsupported OS: {sys.platform}",
+                    signal=BootstrapSignal.ERROR,
+                    message=self.__translations.get(
+                        "BOOSTSTRAP_UNSUPPORTED_OS_MESSAGE", ""
+                    ),
                 )
 
         if on_signal is not None:
@@ -192,12 +197,14 @@ class Bootstrap:
         if relaunch_code != 0:
             debug("❌ Elevation failed", context=get_context(self))
 
+        message = self.__translations.get("BOOSTSTRAP_ADMIN_DENIED_MESSAGE", "").format(
+            "root", "root"
+        )
+
         return BootstrapResult(
             code=relaunch_code,
             signal=(
-                BootstrapSignal.OK
-                if relaunch_code == 0
-                else BootstrapSignal.ADMIN_DENIED
+                BootstrapSignal.OK if relaunch_code == 0 else BootstrapSignal.ERROR
             ),
-            message=None if relaunch_code == 0 else "Elevation failed",
+            message=None if relaunch_code == 0 else message,
         )

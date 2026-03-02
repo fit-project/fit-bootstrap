@@ -7,9 +7,6 @@ from typing import Callable, Optional
 
 class BootstrapSignal(str, Enum):
     OK = "ok"
-    ADMIN_DENIED = "admin_denied"
-    CERTIFICATE_NOT_INSTALLED = "certificate_not_installed"
-    UNSUPPORTED_OS = "unsupported_os"
     ERROR = "error"
 
 
