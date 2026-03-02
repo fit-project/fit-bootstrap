@@ -95,6 +95,11 @@ def test_dispatch_returns_certificate_failure_when_install_fails(
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "macos")
     monkeypatch.setattr(
         bootstrap_module,
+        "ensure_screen_recoder_available",
+        lambda: Path("/tmp/fit-screen-recoder"),
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
         "MacBootstrap",
         lambda: type(
             "_B",
@@ -122,6 +127,11 @@ def test_dispatch_macos_relaunches_and_resolves_script_path(
 ) -> None:
     _patch_bootstrap_init_dependencies(monkeypatch)
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "macos")
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_screen_recoder_available",
+        lambda: Path("/tmp/fit-screen-recoder"),
+    )
     monkeypatch.setattr(bootstrap_module, "is_bundled", lambda: False)
     monkeypatch.setattr(
         bootstrap_module,
@@ -161,6 +171,7 @@ def test_dispatch_macos_relaunches_and_resolves_script_path(
     env = captured["env"]  # type: ignore[assignment]
     assert env["FIT_BOOTSTRAP_STAGE"] == "gui"  # type: ignore[index]
     assert env["FIT_MITM_PORT"] == "9080"  # type: ignore[index]
+    assert env["FIT_SCREEN_RECODER_PATH"] == "/tmp/fit-screen-recoder"  # type: ignore[index]
 
 
 @pytest.mark.unit
@@ -169,6 +180,11 @@ def test_dispatch_returns_admin_denied_on_failed_relaunch(
 ) -> None:
     _patch_bootstrap_init_dependencies(monkeypatch)
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "macos")
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_screen_recoder_available",
+        lambda: Path("/tmp/fit-screen-recoder"),
+    )
     monkeypatch.setattr(bootstrap_module, "is_bundled", lambda: True)
     monkeypatch.setattr(
         bootstrap_module,
@@ -213,3 +229,25 @@ def test_dispatch_returns_unsupported_for_non_macos(
 
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "lin")
     assert bootstrap._dispatch().signal == BootstrapSignal.UNSUPPORTED_OS
+
+
+@pytest.mark.unit
+def test_run_common_checks_returns_error_when_screen_recoder_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_bootstrap_init_dependencies(monkeypatch)
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_screen_recoder_available",
+        lambda: None,
+    )
+
+    result = bootstrap_module.Bootstrap()._run_common_checks(
+        argv=["main.py"],
+        stage_env="FIT_BOOTSTRAP_STAGE",
+        stage_gui="gui",
+    )
+
+    assert result is not None
+    assert result.code == 1
+    assert result.signal == BootstrapSignal.SCREEN_RECODER_PATH_NOT_FOUND

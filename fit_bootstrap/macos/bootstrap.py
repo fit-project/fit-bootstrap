@@ -1,14 +1,10 @@
 from fit_common.core import debug, get_context
 
 from fit_bootstrap.macos.certificate import CertificateManager
-from fit_bootstrap.macos.permission import PermissionChecker
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
 
 
 class MacBootstrap:
-    def __init__(self):
-        self._permission_checker = PermissionChecker()
-
     def __result_from_code(
         self, code: int, message: str | None = None
     ) -> BootstrapResult:
@@ -30,5 +26,5 @@ class MacBootstrap:
         return self.__result_from_code(0)
 
     def ensure_permissions(self) -> BootstrapResult:
-        debug("ℹ️ verifying screen recording permissions", context=get_context(self))
-        return self._permission_checker.run()
+        debug("ℹ️ no additional permission checks required", context=get_context(self))
+        return self.__result_from_code(0)

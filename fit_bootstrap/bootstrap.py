@@ -19,36 +19,23 @@ from fit_bootstrap.constants import (
     FIT_DEBUG_ENABLED,
     FIT_DNS,
     FIT_EXECUTION_ENV,
-    FIT_FFMPEG_PATH,
     FIT_HOST_IP,
     FIT_LOG_APP_PATH,
     FIT_MITM_PORT,
     FIT_OS_TYPE,
     FIT_OS_VERSION,
     FIT_PUBLIC_IP,
+    FIT_SCREEN_RECODER_PATH,
     FIT_USER_APP_PATH,
     FIT_USER_SYSTEM_LANG,
     FIT_USERNAME,
     FIT_VERSION,
 )
 from fit_bootstrap.context import AcquisitionContext
-from fit_bootstrap.ffmpeg import ensure_ffmpeg_available
 from fit_bootstrap.macos.bootstrap import MacBootstrap
 from fit_bootstrap.privilege import ensure_root_or_relaunch
+from fit_bootstrap.screen_recorder import ensure_screen_recoder_available
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal, SignalHandler
-
-
-def _prepend_path_entry(path_value: str, entry: str) -> str:
-    if not entry:
-        return path_value or ""
-    entry_norm = os.path.normcase(os.path.normpath(entry))
-    parts = [
-        part
-        for part in (path_value or "").split(os.pathsep)
-        if part and os.path.normcase(os.path.normpath(part)) != entry_norm
-    ]
-    normalized_entry = os.path.normpath(entry)
-    return os.pathsep.join([normalized_entry] + parts) if parts else normalized_entry
 
 
 class Bootstrap:
@@ -134,17 +121,14 @@ class Bootstrap:
                 message="Missing bootstrap parameters",
             )
 
-        ffmpeg_path = ensure_ffmpeg_available()
-        if ffmpeg_path is None:
+        screen_recorder_path = ensure_screen_recoder_available()
+        if screen_recorder_path is None:
             return BootstrapResult(
                 code=1,
-                signal=BootstrapSignal.FFMPEG_PATH_NOT_FOUND,
-                message=None,
+                signal=BootstrapSignal.SCREEN_RECODER_PATH_NOT_FOUND,
+                message="fit-screen-recoder bundle not found",
             )
 
-        os.environ["PATH"] = _prepend_path_entry(
-            os.environ.get("PATH", ""), str(ffmpeg_path.parent)
-        )
         return None
 
     def _dispatch_macos(
@@ -157,14 +141,16 @@ class Bootstrap:
         if self.caller in {CallerProfile.FIT, CallerProfile.FIT_WEB}:
             cert_result = mac_bootstrap.install_certificate()
         else:
-            cert_result = BootstrapResult(code=0, signal=BootstrapSignal.OK, message=None)
+            cert_result = BootstrapResult(
+                code=0, signal=BootstrapSignal.OK, message=None
+            )
 
         if cert_result.code != 0:
             return cert_result
 
-        permission_result = mac_bootstrap.ensure_permissions()
-        if permission_result.code != 0:
-            return permission_result
+        # permission_result = mac_bootstrap.ensure_permissions()
+        # if permission_result.code != 0:
+        #     return permission_result
 
         if is_bundled():
             relaunch_argv = list(argv[1:])
@@ -191,7 +177,7 @@ class Bootstrap:
                 FIT_USER_SYSTEM_LANG: os.environ.get(FIT_USER_SYSTEM_LANG, ""),
                 FIT_EXECUTION_ENV: os.environ.get(FIT_EXECUTION_ENV, ""),
                 FIT_VERSION: os.environ.get(FIT_VERSION, ""),
-                FIT_FFMPEG_PATH: os.environ.get(FIT_FFMPEG_PATH, ""),
+                FIT_SCREEN_RECODER_PATH: os.environ.get(FIT_SCREEN_RECODER_PATH, ""),
             },
         )
 
