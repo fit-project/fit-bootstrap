@@ -23,12 +23,6 @@ from fit_bootstrap.macos.proxy import MacProxyManager, ProxyState
 from fit_bootstrap.mitmproxy_runner import MitmproxyRunner
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
 
-_SCREEN_RECODER_HELP_KEYS = {
-    "macos": "BOOSTSTRAP_SCREEN_RECODER_PATH_NOT_FOUND_HELP_MACOS",
-    "win": "BOOSTSTRAP_SCREEN_RECODER_PATH_NOT_FOUND_HELP_WINDOWS",
-    "lin": "BOOSTSTRAP_SCREEN_RECODER_PATH_NOT_FOUND_HELP_LINUX",
-}
-
 
 def _log_bootstrap_result(result: BootstrapResult) -> None:
     __translations = load_translations()
