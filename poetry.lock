@@ -413,7 +413,7 @@ xhtml2pdf = "^0.2.17"
 type = "git"
 url = "https://github.com/fit-project/fit-common.git"
 reference = "main"
-resolved_reference = "020afdd35950b0532c322eae5f78df8257c469a2"
+resolved_reference = "6c5b2411e7dfc3ef7e9e0e279f31b6223d0f8b54"
 
 [[package]]
 name = "freetype-py"
@@ -1164,14 +1164,14 @@ async-http = ["aiohttp (>=3.9,<3.14)"]
 
 [[package]]
 name = "pypdf"
-version = "6.7.4"
+version = "6.7.5"
 description = "A pure-python PDF library capable of splitting, merging, cropping, and transforming PDF files"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "pypdf-6.7.4-py3-none-any.whl", hash = "sha256:527d6da23274a6c70a9cb59d1986d93946ba8e36a6bc17f3f7cce86331492dda"},
-    {file = "pypdf-6.7.4.tar.gz", hash = "sha256:9edd1cd47938bb35ec87795f61225fd58a07cfaf0c5699018ae1a47d6f8ab0e3"},
+    {file = "pypdf-6.7.5-py3-none-any.whl", hash = "sha256:07ba7f1d6e6d9aa2a17f5452e320a84718d4ce863367f7ede2fd72280349ab13"},
+    {file = "pypdf-6.7.5.tar.gz", hash = "sha256:40bb2e2e872078655f12b9b89e2f900888bb505e88a82150b64f9f34fa25651d"},
 ]
 
 [package.extras]

@@ -10,6 +10,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from enum import Enum
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -170,23 +171,23 @@ def download_release_asset(
 
 def main() -> int:
     try:
-        from PySide6.QtCore import QObject, QThread, Signal
+        from PySide6.QtCore import QObject, Qt, QThread, Signal
         from PySide6.QtWidgets import (
             QApplication,
             QDialog,
-            QHBoxLayout,
-            QLabel,
-            QMessageBox,
-            QProgressBar,
-            QPushButton,
-            QVBoxLayout,
         )
+
+        from fit_bootstrap.updater_ui import Ui_askpass_dialog
     except Exception as exc:
         sys.stderr.write(str(exc))
         sys.stderr.flush()
         sys.stdout.write(UpdaterOutcome.ERROR.value + "\n")
         sys.stdout.flush()
         return 1
+    try:
+        from fit_assets import resources  # noqa: F401
+    except Exception:
+        pass
 
     asset = _deserialize_asset_from_env()
     if asset is None:
@@ -231,77 +232,102 @@ def main() -> int:
 
             self.finished.emit(UpdaterOutcome.UPDATED.value, "")
 
-    class UpdateDialog(QDialog):
+    class UpdateDialog(QDialog, Ui_askpass_dialog):
         def __init__(self, update_asset: ReleaseAsset) -> None:
             super().__init__()
+            self.setupUi(self)
             self._asset = update_asset
             self._outcome = UpdaterOutcome.DECLINED
             self._detail: str | None = None
             self._thread: QThread | None = None
             self._worker: UpdateWorker | None = None
 
+            # Match the frameless style used by other bootstrap dialogs.
+            self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             self.setWindowTitle(translations.get("UPDATER_DIALOG_TITLE", "Update"))
-            self.resize(520, 220)
-
-            layout = QVBoxLayout(self)
-            title = QLabel(
-                translations.get("UPDATER_DIALOG_HEADING", "").format(
-                    update_asset.app_name,
-                    update_asset.version,
-                )
+            self.title_right_info.setText(
+                translations.get("UPDATER_DIALOG_TITLE", "Update")
             )
-            title.setWordWrap(True)
-            layout.addWidget(title)
-
-            description = QLabel(
-                translations.get(
-                    "UPDATER_DIALOG_BODY",
-                    "",
-                ).format(update_asset.name)
+            heading = translations.get("UPDATER_DIALOG_HEADING", "").format(
+                update_asset.app_name,
+                update_asset.version,
             )
-            description.setWordWrap(True)
-            layout.addWidget(description)
-
-            self._status_label = QLabel(translations.get("UPDATER_STATUS_WAITING", ""))
-            self._status_label.setWordWrap(True)
-            layout.addWidget(self._status_label)
-
-            self._progress = QProgressBar(self)
-            self._progress.setRange(0, 1)
-            self._progress.setValue(0)
-            layout.addWidget(self._progress)
-
-            buttons = QHBoxLayout()
-            self._skip_button = QPushButton(
-                translations.get("UPDATER_SKIP_BUTTON", "Skip")
+            description = translations.get("UPDATER_DIALOG_BODY", "").format(
+                update_asset.name
             )
-            self._install_button = QPushButton(
+            self._body_message = (
+                f"{escape(heading)}<br><br>{description}" if heading else description
+            )
+            self._set_status(translations.get("UPDATER_STATUS_WAITING", ""))
+
+            self.progress_bar.setRange(0, 1)
+            self.progress_bar.setValue(0)
+
+            self.cancel_button.setText(translations.get("UPDATER_SKIP_BUTTON", "Skip"))
+            self.ok_button.setText(
                 translations.get("UPDATER_INSTALL_BUTTON", "Install")
             )
-            self._skip_button.clicked.connect(self._decline_update)
-            self._install_button.clicked.connect(self._start_update)
-            buttons.addWidget(self._skip_button)
-            buttons.addWidget(self._install_button)
-            layout.addLayout(buttons)
+            self.cancel_button.clicked.connect(self._decline_update)
+            self.ok_button.clicked.connect(self._start_update)
+            self.ok_button.setDefault(True)
 
         def result_value(self) -> UpdaterResult:
             return UpdaterResult(self._outcome, self._detail)
+
+        def _set_status(self, status: str) -> None:
+            self.message.setText(f"{self._body_message}<br><br><b>{escape(status)}</b>")
+
+        def _set_completion_state(
+            self,
+            *,
+            status_text: str,
+            detail: str | None,
+            close_handler: Any,
+            status_is_html: bool = False,
+        ) -> None:
+            detail_html = ""
+            if detail:
+                escaped_detail = escape(detail).replace("\n", "<br>")
+                detail_html = f"<br><br><small>{escaped_detail}</small>"
+            rendered_status = status_text if status_is_html else escape(status_text)
+            self.message.setText(
+                f"{self._body_message}<br><br><b>{rendered_status}</b>{detail_html}"
+            )
+            self.progress_bar.setRange(0, 1)
+            self.progress_bar.setValue(1)
+            self.cancel_button.hide()
+            self.ok_button.show()
+            self.ok_button.setEnabled(True)
+            self.ok_button.setText(translations.get("OK_BUTTON", "OK"))
+            self.ok_button.setDefault(True)
+            try:
+                self.ok_button.clicked.disconnect()
+            except TypeError:
+                pass
+            self.ok_button.clicked.connect(close_handler)
 
         def _decline_update(self) -> None:
             self._outcome = UpdaterOutcome.DECLINED
             self.reject()
 
         def _start_update(self) -> None:
-            self._skip_button.setEnabled(False)
-            self._install_button.setEnabled(False)
-            self._progress.setRange(0, 0)
-            self._status_label.setText(translations.get("UPDATER_STATUS_STARTING", ""))
+            if self._thread is not None and self._thread.isRunning():
+                return
+            self.cancel_button.setEnabled(False)
+            try:
+                self.cancel_button.clicked.disconnect(self._decline_update)
+            except TypeError:
+                pass
+            self.ok_button.setEnabled(False)
+            self.progress_bar.setRange(0, 0)
+            self._set_status(translations.get("UPDATER_STATUS_STARTING", ""))
 
             self._thread = QThread(self)
             self._worker = UpdateWorker(self._asset)
             self._worker.moveToThread(self._thread)
             self._thread.started.connect(self._worker.run)
-            self._worker.status_changed.connect(self._status_label.setText)
+            self._worker.status_changed.connect(self._set_status)
             self._worker.finished.connect(self._finish_update)
             self._worker.finished.connect(self._thread.quit)
             self._worker.finished.connect(self._worker.deleteLater)
@@ -309,61 +335,60 @@ def main() -> int:
             self._thread.start()
 
         def _show_download_path(self, downloaded_path: str) -> None:
-            QMessageBox.information(
-                self,
-                translations.get("UPDATER_DIALOG_TITLE", "Update"),
-                f"Downloaded package path:\n{downloaded_path}",
+            self._set_completion_state(
+                status_text=escape(f"Downloaded package path:\n{downloaded_path}"),
+                detail=None,
+                close_handler=self.reject,
+                status_is_html=True,
             )
 
         def _finish_update(self, outcome_text: str, detail: str) -> None:
             outcome = _parse_updater_outcome(outcome_text) or UpdaterOutcome.ERROR
             self._outcome = outcome
             self._detail = detail or None
-            self._progress.setRange(0, 1)
-            self._progress.setValue(1)
 
             if outcome == UpdaterOutcome.UPDATED:
-                QMessageBox.information(
-                    self,
-                    translations.get("UPDATER_DIALOG_TITLE", "Update"),
-                    translations.get("UPDATER_STATUS_UPDATED", ""),
+                self._set_completion_state(
+                    status_text=translations.get("UPDATER_STATUS_UPDATED", ""),
+                    detail=None,
+                    close_handler=self.accept,
+                    status_is_html=True,
                 )
-                self.accept()
                 return
 
             if outcome == UpdaterOutcome.DOWNLOAD_FAILED_CONTINUE:
-                QMessageBox.warning(
-                    self,
-                    translations.get("UPDATER_DIALOG_TITLE", "Update"),
-                    translations.get("UPDATER_STATUS_DOWNLOAD_FAILED", ""),
+                self._set_completion_state(
+                    status_text=translations.get("UPDATER_STATUS_DOWNLOAD_FAILED", ""),
+                    detail=detail,
+                    close_handler=self.reject,
+                    status_is_html=True,
                 )
-                self.reject()
                 return
 
             if outcome == UpdaterOutcome.HELPER_FAILED_CONTINUE:
-                QMessageBox.warning(
-                    self,
-                    translations.get("UPDATER_DIALOG_TITLE", "Update"),
-                    translations.get("UPDATER_STATUS_HELPER_FAILED", ""),
+                self._set_completion_state(
+                    status_text=translations.get("UPDATER_STATUS_HELPER_FAILED", ""),
+                    detail=detail,
+                    close_handler=self.reject,
+                    status_is_html=True,
                 )
-                self.reject()
                 return
 
             if outcome == UpdaterOutcome.INSTALL_FAILED_ROLLBACK:
-                QMessageBox.warning(
-                    self,
-                    translations.get("UPDATER_DIALOG_TITLE", "Update"),
-                    translations.get("UPDATER_STATUS_INSTALL_FAILED", ""),
+                self._set_completion_state(
+                    status_text=translations.get("UPDATER_STATUS_INSTALL_FAILED", ""),
+                    detail=detail,
+                    close_handler=self.reject,
+                    status_is_html=True,
                 )
-                self.reject()
                 return
 
-            QMessageBox.critical(
-                self,
-                translations.get("UPDATER_DIALOG_TITLE", "Update"),
-                translations.get("UPDATER_STATUS_ERROR", ""),
+            self._set_completion_state(
+                status_text=translations.get("UPDATER_STATUS_ERROR", ""),
+                detail=detail,
+                close_handler=self.reject,
+                status_is_html=True,
             )
-            self.reject()
 
     translations = load_translations()
     app = QApplication(sys.argv)
