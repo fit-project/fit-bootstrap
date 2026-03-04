@@ -1,5 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+
+SPEC_DIR = Path(globals().get("SPECPATH", Path.cwd())).resolve()
+REPO_ROOT = SPEC_DIR.parent.parent.parent
+
+
+version_value = os.environ.get("FIT_BUILD_VERSION")
+if not version_value:
+    raise RuntimeError(
+        "FIT_BUILD_VERSION is required (example: FIT_BUILD_VERSION=1.0.0)."
+    )
+version_file_path = REPO_ROOT / "_version.py"
+version_file_path.write_text(f'__version__ = "{version_value}"\n', encoding="utf-8")
 
 hiddenimports = ['fit_common', 'fit_assets']
 hiddenimports += collect_submodules('fit_common')
@@ -11,14 +25,24 @@ hiddenimports += ['fit_bootstrap.macos.askpass_dialog']
 datas = collect_data_files('fit_assets')
 datas += collect_data_files('fit_common', includes=['lang/*.json'])
 datas += collect_data_files('mitmproxy')
-datas += collect_data_files('fit_bootstrap', includes=['lang/*.json'])
-datas += [('fit_bootstrap/macos/askpass.sh', 'fit_bootstrap/macos')]
-datas += [('fit_bootstrap/mitmproxy_addons/fit_capture.py', 'fit_bootstrap/mitmproxy_addons')]
+datas += [
+    (str(path), 'fit_bootstrap/lang')
+    for path in sorted((REPO_ROOT / 'fit_bootstrap' / 'lang').glob('*.json'))
+]
+datas += [(str(REPO_ROOT / 'fit_bootstrap/macos/askpass.sh'), 'fit_bootstrap/macos')]
+datas += collect_data_files("fit_bootstrap", includes=["fit_screen_recorder_binaries/macos_arm64/fit-screen-recoder"])
+datas += [
+    (
+        str(REPO_ROOT / 'fit_bootstrap/mitmproxy_addons/fit_capture.py'),
+        'fit_bootstrap/mitmproxy_addons',
+    )
+]
+datas.append((str(version_file_path), "."))
 
 
 a = Analysis(
-    ['main.py'],
-    pathex=[],
+    [str(REPO_ROOT / "main.py")],
+    pathex=[str(REPO_ROOT)],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,
@@ -59,7 +83,14 @@ coll = COLLECT(
 )
 app = BUNDLE(
     coll,
-    name='FIT Bootstrap.app',
+    name='FitBootstrap.app',
     icon=None,
-    bundle_identifier=None,
+    bundle_identifier="org.fit-project.fit.bootstrap",
+    version=version_value,
 )
+
+if version_file_path.exists():
+    try:
+        version_file_path.unlink()
+    except OSError:
+        pass

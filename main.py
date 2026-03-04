@@ -71,7 +71,7 @@ def _run_gui() -> int:
 
     app = QApplication(sys.argv)
     window = QWidget()
-    window.setWindowTitle("FIT Bootstrap GUI")
+    window.setWindowTitle("FIT Bootstrap GUI 2.0.0")
     layout = QVBoxLayout(window)
     euid = os.geteuid()
     status = "root" if euid == 0 else "user"
@@ -192,6 +192,11 @@ def main() -> int:
 
         return askpass_main()
 
+    if os.environ.get("FIT_UPDATE_DIALOG") == "1":
+        from fit_bootstrap.updater import main as updater_main
+
+        return updater_main()
+
     args = parse_args()
     debug_enabled = args.debug != "none"
 
@@ -218,7 +223,9 @@ def main() -> int:
         atexit.register(release_app_lock)
         return _run_gui()
 
-    bootstrap = Bootstrap(debug_enabled=debug_enabled, caller=CallerProfile.FIT)
+    bootstrap = Bootstrap(
+        debug_enabled=debug_enabled, caller=CallerProfile.FIT_BOOTSTRAP
+    )
     mitm_runner = MitmproxyRunner()
     if not mitm_runner.start():
         debug("❌ mitmproxy start failed", context="main.fit_bootstrap")

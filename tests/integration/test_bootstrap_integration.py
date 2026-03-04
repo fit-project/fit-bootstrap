@@ -53,6 +53,11 @@ def test_dispatch_macos_success_calls_signal_handler(
     )
     monkeypatch.setattr(
         bootstrap_module,
+        "ensure_latest_release_version",
+        lambda _caller: None,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
         "MacBootstrap",
         lambda: type(
             "_B",
@@ -117,6 +122,11 @@ def test_dispatch_macos_certificate_failure_short_circuits(
         bootstrap_module,
         "ensure_screen_recoder_available",
         lambda: None,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_latest_release_version",
+        lambda _caller: None,
     )
     monkeypatch.setattr(
         bootstrap_module,

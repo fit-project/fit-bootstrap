@@ -35,6 +35,7 @@ from fit_bootstrap.lang import load_translations
 from fit_bootstrap.macos.bootstrap import MacBootstrap
 from fit_bootstrap.os_requirements import ensure_supported_os_configuration
 from fit_bootstrap.privilege import ensure_root_or_relaunch
+from fit_bootstrap.release_version import ensure_latest_release_version
 from fit_bootstrap.screen_recorder import ensure_screen_recoder_available
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal, SignalHandler
 
@@ -153,6 +154,10 @@ class Bootstrap:
         )
         if os_requirements_result is not None:
             return os_requirements_result
+
+        release_version_result = ensure_latest_release_version(self.caller)
+        if release_version_result is not None:
+            return release_version_result
 
         screen_recorder_result = ensure_screen_recoder_available()
         if screen_recorder_result is not None:

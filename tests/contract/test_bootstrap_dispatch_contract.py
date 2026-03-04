@@ -50,6 +50,11 @@ def test_dispatch_unsupported_platform_contract(
         "ensure_screen_recoder_available",
         lambda: None,
     )
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_latest_release_version",
+        lambda _caller: None,
+    )
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: platform)
     bootstrap = bootstrap_module.Bootstrap(caller=CallerProfile.FIT)
 
@@ -107,6 +112,11 @@ def test_dispatch_admin_denied_contract(monkeypatch: pytest.MonkeyPatch) -> None
         bootstrap_module,
         "ensure_screen_recoder_available",
         lambda: None,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_latest_release_version",
+        lambda _caller: None,
     )
     bootstrap = bootstrap_module.Bootstrap(caller=CallerProfile.FIT)
 
