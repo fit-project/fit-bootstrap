@@ -18,6 +18,11 @@ def _patch_bootstrap_init_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bootstrap_module, "get_version", lambda: "1.0.0")
     monkeypatch.setattr(bootstrap_module, "find_free_port", lambda: 9080)
     monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_connectivity_available",
+        lambda: None,
+    )
+    monkeypatch.setattr(
         bootstrap_module.AcquisitionContext,
         "collect",
         classmethod(
@@ -303,6 +308,11 @@ def test_run_common_checks_returns_error_when_screen_recoder_missing(
     )
     monkeypatch.setattr(
         bootstrap_module,
+        "ensure_connectivity_available",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
         "ensure_screen_recoder_available",
         lambda: BootstrapResult(
             code=1,
@@ -346,3 +356,35 @@ def test_run_common_checks_returns_error_when_os_requirements_not_met(
     assert result is not None
     assert result.code == 1
     assert result.signal == BootstrapSignal.ERROR
+
+
+@pytest.mark.unit
+def test_run_common_checks_returns_error_when_connectivity_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_bootstrap_init_dependencies(monkeypatch)
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_supported_os_configuration",
+        lambda _context: None,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_connectivity_available",
+        lambda: BootstrapResult(
+            code=1,
+            signal=BootstrapSignal.ERROR,
+            message="no internet",
+        ),
+    )
+
+    result = bootstrap_module.Bootstrap()._run_common_checks(
+        argv=["main.py"],
+        stage_env="FIT_BOOTSTRAP_STAGE",
+        stage_gui="gui",
+    )
+
+    assert result is not None
+    assert result.code == 1
+    assert result.signal == BootstrapSignal.ERROR
+    assert result.message == "no internet"

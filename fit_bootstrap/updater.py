@@ -14,7 +14,7 @@ from html import escape
 from pathlib import Path
 from typing import Any
 
-import requests
+import requests  # type: ignore[import-untyped]
 from fit_common.core import debug, get_platform
 from fit_common.core.versions import (
     extract_version,
@@ -391,7 +391,8 @@ def main() -> int:
             )
 
     translations = load_translations()
-    app = QApplication(sys.argv)
+    if QApplication.instance() is None:
+        QApplication(sys.argv)
     dialog = UpdateDialog(asset)
     dialog.exec()
     result = dialog.result_value()
@@ -433,7 +434,15 @@ def _deserialize_asset_from_env() -> ReleaseAsset | None:
     version = os.environ.get(_ENV_VERSION)
     name = os.environ.get(_ENV_ASSET_NAME)
     download_url = os.environ.get(_ENV_DOWNLOAD_URL)
-    if not all((repo, app_name, version, name, download_url)):
+    if not isinstance(repo, str) or not repo:
+        return None
+    if not isinstance(app_name, str) or not app_name:
+        return None
+    if not isinstance(version, str) or not version:
+        return None
+    if not isinstance(name, str) or not name:
+        return None
+    if not isinstance(download_url, str) or not download_url:
         return None
     content_type = os.environ.get(_ENV_CONTENT_TYPE)
     return ReleaseAsset(

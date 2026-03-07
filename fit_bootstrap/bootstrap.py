@@ -14,6 +14,7 @@ from fit_common.core import (
 from fit_common.core.paths import resolve_app_path, resolve_log_path
 
 from fit_bootstrap.caller import CallerProfile
+from fit_bootstrap.connectivity import ensure_connectivity_available
 from fit_bootstrap.constants import (
     FIT_DEBUG_ENABLED,
     FIT_DNS,
@@ -155,6 +156,10 @@ class Bootstrap:
         if os_requirements_result is not None:
             return os_requirements_result
 
+        connectivity_result = ensure_connectivity_available()
+        if connectivity_result is not None:
+            return connectivity_result
+
         release_version_result = ensure_latest_release_version(self.caller)
         if release_version_result is not None:
             return release_version_result
@@ -172,7 +177,11 @@ class Bootstrap:
         stage_gui: str,
     ) -> BootstrapResult:
         mac_bootstrap = MacBootstrap()
-        if self.caller in {CallerProfile.FIT, CallerProfile.FIT_WEB}:
+        if self.caller in {
+            CallerProfile.FIT,
+            CallerProfile.FIT_WEB,
+            CallerProfile.FIT_BOOTSTRAP,
+        }:
             cert_result = mac_bootstrap.install_certificate()
         else:
             cert_result = BootstrapResult(

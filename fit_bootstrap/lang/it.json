@@ -4,6 +4,7 @@
     "USER_IS_NOT_ADMIN_TITLE": "Privilegi Utente",
     "USER_IS_NOT_ADMIN_MSG": "Per avviare <strong>FIT</strong> sono necessari i privilegi di {}.<br><br><strong style=\"color:red\">Senza tali privilegi FIT non pu\u00f2 funzionare.</strong>",
     "BOOSTSTRAP_ERROR_DIALOG_TITLE": "FIT Bootstrap Errore",
+    "BOOSTSTRAP_ERROR_CONNECTION_MESSAGE": "<strong>Nessuna connessione</strong><br><br><strong style=\"color:red\">FIT non può essere eseguita senza connessione.</strong><br><br>Prova a:<br>- Controllare i cavi di rete, il modem e il router<br>- Riconnetterti al Wi‑Fi",
     "BOOSTSTRAP_MISSING_PARAMETERS_MESSAGE": "Parametri di bootstrap mancanti",
     "BOOSTSTRAP_ADMIN_DENIED_MESSAGE": "Accesso ai privilegi di {} negato.<br><br><strong style=\"color:red\">FIT non può essere eseguita senza privilegi {}.</strong>",
     "BOOSTSTRAP_CERTIFICATE_NOT_INSTALLED_MESSAGE": "Installazione del certificato MITMPROXY fallita.<br><br><strong style=\"color:red\">FIT non può essere eseguita senza questo certificato.</strong>",

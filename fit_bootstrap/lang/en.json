@@ -4,6 +4,7 @@
     "USER_IS_NOT_ADMIN_TITLE": "User Privilege",
     "USER_IS_NOT_ADMIN_MSG": "To run <strong>FIT</strong>, {} privileges are required.<br><br><strong style=\"color:red\">Without these privileges, FIT cannot works.</strong>",
     "BOOSTSTRAP_ERROR_DIALOG_TITLE": "FIT Bootstrap Error",
+    "BOOSTSTRAP_ERROR_CONNECTION_MESSAGE": "<strong>No internet</strong><br><br><strong style=\"color:red\">FIT cannot be run without an internet connection.</strong><br><br>Try:<br>- Checking the network cables, modem, and router<br>- Reconnecting to Wi-Fi",
     "BOOSTSTRAP_MISSING_PARAMETERS_MESSAGE": "Missing bootstrap parameters",
     "BOOSTSTRAP_ADMIN_DENIED_MESSAGE": "Privileges denied for {}.<br><br><strong style=\"color:red\">FIT cannot run without {} privileges.</strong>",
     "BOOSTSTRAP_CERTIFICATE_NOT_INSTALLED_MESSAGE": "MITMPROXY certificate installation failed. <br><br><strong style=\"color:red\">FIT cannot run without this certificate.</strong>",
