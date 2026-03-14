@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import re
 import shlex
 import subprocess
 import sys
@@ -17,7 +18,6 @@ from typing import Any
 import requests  # type: ignore[import-untyped]
 from fit_common.core import debug, get_platform
 from fit_common.core.versions import (
-    extract_version,
     get_latest_release_payload,
     get_local_version,
 )
@@ -98,11 +98,17 @@ def resolve_release_asset(caller: CallerProfile) -> ReleaseAsset | None:
             context=_LOG_CONTEXT,
         )
         payload = {}
-    version = extract_version(str(payload.get("tag_name", "")))
+    version = _extract_version_from_tag(str(payload.get("tag_name", "")))
     if not version:
+        return None
+    if not _normalize_version_for_compare(version):
         return None
 
     asset = _find_matching_asset(payload, version)
+    if asset is None:
+        normalized_version = _normalize_version_for_compare(version)
+        if normalized_version and normalized_version != version:
+            asset = _find_matching_asset(payload, normalized_version)
 
     if asset is None:
         return None
@@ -489,6 +495,56 @@ def _find_matching_asset(
     return None
 
 
+def _extract_version_from_tag(tag_name: str) -> str:
+    normalized = tag_name.strip().lower()
+    if normalized.startswith("v."):
+        normalized = normalized[2:]
+    elif normalized.startswith("v"):
+        normalized = normalized[1:]
+    return normalized.split("+", 1)[0]
+
+
+def _normalize_version_for_compare(value: str) -> str:
+    raw = _extract_version_from_tag(value)
+    if not raw:
+        return ""
+
+    try:
+        return str(Version(raw))
+    except InvalidVersion:
+        pass
+
+    match = re.fullmatch(r"(?P<core>\d+\.\d+\.\d+)-(?P<pre>[0-9a-z.-]+)", raw)
+    if match is None:
+        return ""
+
+    core = match.group("core")
+    prerelease = match.group("pre")
+    prerelease_match = re.fullmatch(
+        r"(?P<label>alpha|a|beta|b|rc|pre|preview)[.-]?(?P<num>\d+)?",
+        prerelease,
+    )
+    if prerelease_match is None:
+        return ""
+
+    label = prerelease_match.group("label")
+    number = prerelease_match.group("num") or "0"
+    mapped = {
+        "alpha": "a",
+        "a": "a",
+        "beta": "b",
+        "b": "b",
+        "rc": "rc",
+        "pre": "rc",
+        "preview": "rc",
+    }[label]
+    candidate = f"{core}{mapped}{number}"
+    try:
+        return str(Version(candidate))
+    except InvalidVersion:
+        return ""
+
+
 def _expected_suffix(current_platform: str) -> str | None:
     if current_platform == "macos":
         return ".dmg"
@@ -706,9 +762,12 @@ exit 0
 
 
 def _is_newer_than_local(remote_version: str) -> bool:
-    local_version = get_local_version()
+    local_version = _normalize_version_for_compare(get_local_version())
+    normalized_remote = _normalize_version_for_compare(remote_version)
+    if not local_version or not normalized_remote:
+        return False
     try:
-        return Version(remote_version) > Version(local_version)
+        return Version(normalized_remote) > Version(local_version)
     except InvalidVersion:
         return False
 

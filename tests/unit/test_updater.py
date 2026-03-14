@@ -153,6 +153,59 @@ def test_get_available_update_returns_none_when_remote_is_not_newer(
 
 
 @pytest.mark.unit
+def test_get_available_update_returns_none_when_semver_prerelease_matches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        updater_module,
+        "resolve_release_asset",
+        lambda _caller: updater_module.ReleaseAsset(
+            repo="fit-web",
+            app_name="FIT Web",
+            version="1.0.0-rc2",
+            name="fit-web-portable-1.0.0-rc2-macos-arm64.dmg",
+            download_url="https://example.test/fit-web.dmg",
+        ),
+    )
+    monkeypatch.setattr(updater_module, "get_local_version", lambda: "1.0.0-rc2")
+
+    update = updater_module.get_available_update(CallerProfile.FIT_WEB)
+
+    assert update is None
+
+
+@pytest.mark.unit
+def test_get_available_update_returns_asset_when_stable_is_newer_than_rc(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        updater_module,
+        "resolve_release_asset",
+        lambda _caller: updater_module.ReleaseAsset(
+            repo="fit-web",
+            app_name="FIT Web",
+            version="1.0.0",
+            name="fit-web-portable-1.0.0-macos-arm64.dmg",
+            download_url="https://example.test/fit-web.dmg",
+        ),
+    )
+    monkeypatch.setattr(updater_module, "get_local_version", lambda: "1.0.0-rc2")
+
+    update = updater_module.get_available_update(CallerProfile.FIT_WEB)
+
+    assert update is not None
+    assert update.version == "1.0.0"
+
+
+@pytest.mark.unit
+def test_normalize_version_for_compare_supports_semver_and_pep440() -> None:
+    assert updater_module._normalize_version_for_compare("v1.0.0-rc2") == "1.0.0rc2"
+    assert updater_module._normalize_version_for_compare("1.0.0rc2") == "1.0.0rc2"
+    assert updater_module._normalize_version_for_compare("v.1.0.0-beta.3") == "1.0.0b3"
+    assert updater_module._normalize_version_for_compare("1.0.0-alpha") == "1.0.0a0"
+
+
+@pytest.mark.unit
 def test_run_updater_serializes_asset_and_parses_outcome(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
