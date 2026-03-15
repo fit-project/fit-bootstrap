@@ -60,7 +60,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='FIT Bootstrap',
+    name='fit-bootstrap',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -79,7 +79,7 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='FIT Bootstrap',
+    name='fit-bootstrap',
 )
 app = BUNDLE(
     coll,
