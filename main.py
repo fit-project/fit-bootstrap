@@ -10,6 +10,7 @@ from fit_common.core import (
     get_platform,
     is_admin,
     is_bundled,
+    resolve_path,
     set_debug_level,
 )
 from fit_common.gui.utils import show_dialog
@@ -71,7 +72,7 @@ def _run_gui() -> int:
 
     app = QApplication(sys.argv)
     window = QWidget()
-    window.setWindowTitle("FIT Bootstrap GUI 2.0.0")
+    window.setWindowTitle("FIT Bootstrap GUI 1.0.15")
     layout = QVBoxLayout(window)
     euid = os.geteuid()
     status = "root" if euid == 0 else "user"
@@ -182,6 +183,7 @@ def _run_gui() -> int:
 
 
 def main() -> int:
+
     if get_platform() == "macos" and os.environ.get("FIT_MITM_LAUNCH") == "1":
         from mitmproxy.tools.main import mitmdump
 
@@ -207,6 +209,7 @@ def main() -> int:
             "verbose": DebugLevel.VERBOSE,
         }[args.debug]
     )
+    debug(f"Freeze directory: {resolve_path("")}", context="main.fit_web")
     debug(f"argv: {sys.argv}", context="main.fit_bootstrap")
     debug(f"bundled: {is_bundled()}", context="main.fit_bootstrap")
 

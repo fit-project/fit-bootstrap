@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>askpass_dialog</class>
- <widget class="QWidget" name="askpass_dialog">
+ <class>updater_dialog</class>
+ <widget class="QWidget" name="updater_dialog">
   <property name="geometry">
    <rect>
     <x>0</x>

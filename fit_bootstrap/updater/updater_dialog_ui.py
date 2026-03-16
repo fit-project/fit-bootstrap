@@ -22,14 +22,14 @@ from PySide6.QtWidgets import (
 )
 
 
-class Ui_askpass_dialog(object):
-    def setupUi(self, askpass_dialog):
-        if not askpass_dialog.objectName():
-            askpass_dialog.setObjectName("askpass_dialog")
-        askpass_dialog.resize(500, 350)
-        askpass_dialog.setMinimumSize(QSize(400, 0))
-        askpass_dialog.setMaximumSize(QSize(16777215, 16777215))
-        askpass_dialog.setStyleSheet(
+class Ui_updater_dialog(object):
+    def setupUi(self, updater_dialog):
+        if not updater_dialog.objectName():
+            updater_dialog.setObjectName("updater_dialog")
+        updater_dialog.resize(500, 350)
+        updater_dialog.setMinimumSize(QSize(400, 0))
+        updater_dialog.setMaximumSize(QSize(16777215, 16777215))
+        updater_dialog.setStyleSheet(
             "\n"
             "\n"
             "        QWidget{\n"
@@ -85,11 +85,11 @@ class Ui_askpass_dialog(object):
             "        solid; border-radius: 4px; }\n"
             ""
         )
-        self.main_layout = QVBoxLayout(askpass_dialog)
+        self.main_layout = QVBoxLayout(updater_dialog)
         self.main_layout.setSpacing(0)
         self.main_layout.setObjectName("main_layout")
         self.main_layout.setContentsMargins(0, 0, 0, 0)
-        self.content_top_bg = QFrame(askpass_dialog)
+        self.content_top_bg = QFrame(updater_dialog)
         self.content_top_bg.setObjectName("content_top_bg")
         self.content_top_bg.setMinimumSize(QSize(400, 50))
         self.content_top_bg.setMaximumSize(QSize(16777215, 50))
@@ -166,7 +166,7 @@ class Ui_askpass_dialog(object):
 
         self.main_layout.addWidget(self.content_top_bg)
 
-        self.content_box = QFrame(askpass_dialog)
+        self.content_box = QFrame(updater_dialog)
         self.content_box.setObjectName("content_box")
         self.content_box.setMinimumSize(QSize(400, 0))
         self.content_box.setStyleSheet("background-color: rgb(40, 44, 52);")
@@ -279,25 +279,25 @@ class Ui_askpass_dialog(object):
 
         self.main_layout.addWidget(self.content_box)
 
-        self.retranslateUi(askpass_dialog)
+        self.retranslateUi(updater_dialog)
 
-        QMetaObject.connectSlotsByName(askpass_dialog)
+        QMetaObject.connectSlotsByName(updater_dialog)
 
     # setupUi
 
-    def retranslateUi(self, askpass_dialog):
-        askpass_dialog.setWindowTitle(
-            QCoreApplication.translate("askpass_dialog", "Dialog", None)
+    def retranslateUi(self, updater_dialog):
+        updater_dialog.setWindowTitle(
+            QCoreApplication.translate("updater_dialog", "Dialog", None)
         )
         self.top_logo.setText("")
         self.title_right_info.setText(
             QCoreApplication.translate(
-                "askpass_dialog", "Aggiornamento disponibile", None
+                "updater_dialog", "Aggiornamento disponibile", None
             )
         )
         self.message.setText(
             QCoreApplication.translate(
-                "askpass_dialog",
+                "updater_dialog",
                 '<html><head/><body><p>"\u00c8 disponibile un aggiornamento di FIT Bootstrap alla versione 2.0.0.<br/><br/>\n'
                 "Vuoi scaricare e installare ora il pacchetto <code>fit-bootstrap-portable-2.0.0-macos-arm64.dmg</code>? <br/><br/>Durante l'operazione l'app attuale potrebbe interrompersi.<br/><br/>Vuoi procedere con il download e installazione?</p></body></html>",
                 None,
@@ -305,11 +305,11 @@ class Ui_askpass_dialog(object):
         )
         self.cancel_button.setText(
             QCoreApplication.translate(
-                "askpass_dialog", "Continua con questa versione", None
+                "updater_dialog", "Continua con questa versione", None
             )
         )
         self.ok_button.setText(
-            QCoreApplication.translate("askpass_dialog", "Aggiorna", None)
+            QCoreApplication.translate("updater_dialog", "Aggiorna", None)
         )
 
     # retranslateUi
