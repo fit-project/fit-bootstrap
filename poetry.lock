@@ -429,7 +429,7 @@ xhtml2pdf = "^0.2.17"
 type = "git"
 url = "https://github.com/fit-project/fit-common.git"
 reference = "main"
-resolved_reference = "e925439dd12367bdbcf4e58220cc1f69222f3d40"
+resolved_reference = "7a63f4ea31e346ece37fc7e668072f2ba4df2b87"
 
 [[package]]
 name = "freetype-py"
