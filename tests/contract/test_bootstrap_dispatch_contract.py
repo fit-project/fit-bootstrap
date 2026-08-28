@@ -17,6 +17,11 @@ def _patch_bootstrap_init_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bootstrap_module, "get_version", lambda: "1.0.0")
     monkeypatch.setattr(bootstrap_module, "find_free_port", lambda: 8090)
     monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_connectivity_available",
+        lambda: None,
+    )
+    monkeypatch.setattr(
         bootstrap_module.AcquisitionContext,
         "collect",
         classmethod(

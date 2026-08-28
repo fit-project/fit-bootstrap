@@ -139,14 +139,23 @@ class Bootstrap:
         argv: list[str] | None,
         stage_env: str | None,
         stage_gui: str | None,
+        *,
+        check_screen_recorder: bool = True,
     ) -> BootstrapResult | None:
-        return self._run_common_checks(argv, stage_env, stage_gui)
+        return self._run_common_checks(
+            argv,
+            stage_env,
+            stage_gui,
+            check_screen_recorder=check_screen_recorder,
+        )
 
     def _run_common_checks(
         self,
         argv: list[str] | None,
         stage_env: str | None,
         stage_gui: str | None,
+        *,
+        check_screen_recorder: bool = True,
     ) -> BootstrapResult | None:
         if argv is None or stage_env is None or stage_gui is None:
             return BootstrapResult(
@@ -172,9 +181,13 @@ class Bootstrap:
         if release_version_result is not None:
             return release_version_result
 
-        screen_recorder_result = ensure_screen_recoder_available()
-        if screen_recorder_result is not None:
-            return screen_recorder_result
+        if (
+            check_screen_recorder
+            and os.environ.get(FIT_EXECUTION_ENV) == "LOCAL_PC"
+        ):
+            screen_recorder_result = ensure_screen_recoder_available()
+            if screen_recorder_result is not None:
+                return screen_recorder_result
 
         return None
 

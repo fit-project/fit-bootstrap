@@ -10,7 +10,8 @@ packages = [
 exclude = ["fit_bootstrap/macos/ui/**", "fit_bootstrap/mitmproxy_addons/**", "fit_bootstrap/mitmproxy_runner.py", "fit_bootstrap/macos/proxy.py"]
 
 include = [
-    "fit_assets/mitmproxy/mitmproxy-ca-cert.pem"
+    "fit_assets/mitmproxy/mitmproxy-ca-cert.pem",
+    "fit_bootstrap/fit_screen_recorder_binaries/linux_x86_64/*.deb"
 ]
 
 [tool.poetry.dependencies]

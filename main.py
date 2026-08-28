@@ -18,10 +18,22 @@ from fit_common.gui.utils import show_dialog
 from fit_bootstrap.app_lock import acquire_app_lock, release_app_lock
 from fit_bootstrap.bootstrap import Bootstrap
 from fit_bootstrap.caller import CallerProfile
-from fit_bootstrap.constants import FIT_MITM_PORT, STAGE_ENV, STAGE_GUI
+from fit_bootstrap.constants import (
+    FIT_EXECUTION_ENV,
+    FIT_MITM_PORT,
+    STAGE_ENV,
+    STAGE_GUI,
+)
 from fit_bootstrap.lang import load_translations
 from fit_bootstrap.macos.proxy import MacProxyManager, ProxyState
 from fit_bootstrap.mitmproxy_runner import MitmproxyRunner
+from fit_bootstrap.screen_recorder import (
+    LinuxRecorderInstallOutcome,
+    LinuxRecorderPackageStatus,
+    ensure_screen_recoder_available,
+    inspect_linux_screen_recorder_package,
+    install_linux_screen_recorder_package,
+)
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
 
 
@@ -33,6 +45,73 @@ def _log_bootstrap_result(result: BootstrapResult) -> None:
     else:
         debug(f"❌ Bootstrap error: {result.message}", context="main.fit_bootstrap")
         show_dialog("error", title, result.message)
+
+
+def _confirm_linux_screen_recorder_install(message: str) -> bool:
+    from PySide6 import QtWidgets
+
+    from fit_common.gui.dialog import Dialog, DialogButtonTypes
+
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication(sys.argv)
+    translations = load_translations()
+    dialog = Dialog(
+        translations.get("BOOSTSTRAP_LINUX_SCREEN_RECORDER_INSTALL_TITLE", ""),
+        message,
+        severity=QtWidgets.QMessageBox.Icon.Question,
+    )
+    dialog.set_buttons_type(DialogButtonTypes.QUESTION)
+    dialog.left_button.clicked.connect(dialog.accept)
+    dialog.right_button.clicked.connect(dialog.reject)
+    try:
+        return dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted
+    finally:
+        dialog.deleteLater()
+        app.processEvents()
+
+
+def _install_linux_screen_recorder_from_ui() -> BootstrapResult | None:
+    package_info = inspect_linux_screen_recorder_package()
+    availability = ensure_screen_recoder_available()
+    if availability is None:
+        return None
+    if package_info.status not in {
+        LinuxRecorderPackageStatus.NOT_INSTALLED,
+        LinuxRecorderPackageStatus.VERSION_INCOMPATIBLE,
+    }:
+        return availability
+    if not _confirm_linux_screen_recorder_install(availability.message or ""):
+        translations = load_translations()
+        return BootstrapResult(
+            code=1,
+            signal=BootstrapSignal.ERROR,
+            message=translations.get(
+                "BOOSTSTRAP_LINUX_SCREEN_RECORDER_INSTALL_CANCELLED_MESSAGE", ""
+            ),
+        )
+
+    install_result = install_linux_screen_recorder_package()
+    if install_result.outcome in {
+        LinuxRecorderInstallOutcome.INSTALLED,
+        LinuxRecorderInstallOutcome.ALREADY_INSTALLED,
+    }:
+        return None
+
+    translations = load_translations()
+    message_key = {
+        LinuxRecorderInstallOutcome.DEB_NOT_FOUND: "BOOSTSTRAP_LINUX_SCREEN_RECORDER_DEB_NOT_FOUND_MESSAGE",
+        LinuxRecorderInstallOutcome.PKEXEC_UNAVAILABLE: "BOOSTSTRAP_LINUX_PKEXEC_NOT_FOUND_MESSAGE",
+        LinuxRecorderInstallOutcome.AUTHENTICATION_CANCELLED: "BOOSTSTRAP_LINUX_SCREEN_RECORDER_AUTH_CANCELLED_MESSAGE",
+        LinuxRecorderInstallOutcome.INSTALL_FAILED: "BOOSTSTRAP_LINUX_SCREEN_RECORDER_INSTALL_FAILED_MESSAGE",
+        LinuxRecorderInstallOutcome.POST_INSTALL_VERIFICATION_FAILED: "BOOSTSTRAP_LINUX_SCREEN_RECORDER_POST_INSTALL_FAILED_MESSAGE",
+        LinuxRecorderInstallOutcome.UNSUPPORTED_SYSTEM: "BOOSTSTRAP_LINUX_SCREEN_RECORDER_UNSUPPORTED_MESSAGE",
+    }[install_result.outcome]
+    return BootstrapResult(
+        code=1,
+        signal=BootstrapSignal.ERROR,
+        message=translations.get(message_key, ""),
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -230,14 +309,26 @@ def main() -> int:
         debug_enabled=debug_enabled, caller=CallerProfile.FIT_BOOTSTRAP
     )
 
+    needs_linux_recorder_install = (
+        get_platform() == "lin"
+        and os.environ.get(FIT_EXECUTION_ENV) == "LOCAL_PC"
+    )
+
     preflight_result = bootstrap.run_preflight_checks(
         argv=list(sys.argv),
         stage_env=STAGE_ENV,
         stage_gui=STAGE_GUI,
+        check_screen_recorder=not needs_linux_recorder_install,
     )
     if preflight_result is not None:
         _log_bootstrap_result(preflight_result)
         return preflight_result.code
+
+    if needs_linux_recorder_install:
+        recorder_result = _install_linux_screen_recorder_from_ui()
+        if recorder_result is not None:
+            _log_bootstrap_result(recorder_result)
+            return recorder_result.code
 
     mitm_runner = MitmproxyRunner()
     if not mitm_runner.start():
