@@ -294,7 +294,7 @@ def main() -> int:
 
     if os.environ.get(STAGE_ENV) == STAGE_GUI:
         debug(f"GUI stage admin: {is_admin()}", context="main.fit_bootstrap")
-        if not is_admin():
+        if get_platform() != "lin" and not is_admin():
             debug("❌ GUI stage requires root privileges", context="main.fit_bootstrap")
             return 1
         if not acquire_app_lock():

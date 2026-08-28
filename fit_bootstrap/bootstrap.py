@@ -1,4 +1,6 @@
 import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -20,6 +22,9 @@ from fit_bootstrap.constants import (
     FIT_DNS,
     FIT_EXECUTION_ENV,
     FIT_HOST_IP,
+    FIT_LINUX_ASKPASS_BUNDLED,
+    FIT_LINUX_ASKPASS_PYTHON,
+    FIT_LINUX_SUDO_ASKPASS,
     FIT_LOG_APP_PATH,
     FIT_MITM_PORT,
     FIT_OS_TYPE,
@@ -33,6 +38,7 @@ from fit_bootstrap.constants import (
 )
 from fit_bootstrap.context import AcquisitionContext
 from fit_bootstrap.lang import load_translations
+from fit_bootstrap.linux.privilege import configure_linux_askpass
 from fit_bootstrap.macos.bootstrap import MacBootstrap
 from fit_bootstrap.os_requirements import ensure_supported_os_configuration
 from fit_bootstrap.privilege import ensure_root_or_relaunch
@@ -224,7 +230,76 @@ class Bootstrap:
         stage_env: str,
         stage_gui: str,
     ) -> BootstrapResult:
-        return self._relaunch_gui(argv, stage_env, stage_gui)
+        askpass_error = configure_linux_askpass()
+        if askpass_error is not None:
+            message_key = (
+                "BOOSTSTRAP_LINUX_SUDO_NOT_FOUND_MESSAGE"
+                if askpass_error == "sudo"
+                else "BOOSTSTRAP_LINUX_ASKPASS_NOT_FOUND_MESSAGE"
+            )
+            return BootstrapResult(
+                code=1,
+                signal=BootstrapSignal.ERROR,
+                message=self.__translations.get(message_key, ""),
+            )
+        return self._relaunch_linux_gui_as_user(argv, stage_env, stage_gui)
+
+    def _relaunch_linux_gui_as_user(
+        self,
+        argv: list[str],
+        stage_env: str,
+        stage_gui: str,
+    ) -> BootstrapResult:
+        if is_bundled():
+            relaunch_argv = list(argv[1:])
+        else:
+            relaunch_argv = list(argv)
+            if relaunch_argv:
+                relaunch_argv[0] = str(Path(relaunch_argv[0]).resolve())
+
+        screen_recorder_dir = str(
+            Path(os.environ.get(FIT_SCREEN_RECODER_PATH, "")).parent
+        )
+        child_env = os.environ.copy()
+        child_env.update(
+            {
+                stage_env: stage_gui,
+                "PATH": _prepend_path_entry(
+                    os.environ.get("PATH", ""), screen_recorder_dir
+                ),
+                FIT_LINUX_SUDO_ASKPASS: os.environ.get(
+                    FIT_LINUX_SUDO_ASKPASS, ""
+                ),
+                FIT_LINUX_ASKPASS_PYTHON: os.environ.get(
+                    FIT_LINUX_ASKPASS_PYTHON, ""
+                ),
+                FIT_LINUX_ASKPASS_BUNDLED: os.environ.get(
+                    FIT_LINUX_ASKPASS_BUNDLED, "0"
+                ),
+            }
+        )
+        try:
+            relaunch_code = subprocess.call(
+                [sys.executable, *relaunch_argv],
+                env=child_env,
+            )
+        except OSError as exc:
+            debug(f"❌ Linux GUI relaunch failed: {exc}", context=get_context(self))
+            relaunch_code = 1
+
+        return BootstrapResult(
+            code=relaunch_code,
+            signal=(
+                BootstrapSignal.OK if relaunch_code == 0 else BootstrapSignal.ERROR
+            ),
+            message=(
+                None
+                if relaunch_code == 0
+                else self.__translations.get(
+                    "BOOSTSTRAP_LINUX_GUI_RELAUNCH_FAILED_MESSAGE", ""
+                )
+            ),
+        )
 
     def _relaunch_gui(
         self,

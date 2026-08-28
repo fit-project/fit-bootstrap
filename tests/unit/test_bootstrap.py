@@ -297,7 +297,9 @@ def test_dispatch_returns_unsupported_for_windows(
     )
 
 @pytest.mark.unit
-def test_dispatch_linux_relaunches_gui(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dispatch_linux_relaunches_gui_as_current_user(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     _patch_bootstrap_init_dependencies(monkeypatch)
     monkeypatch.setenv("FIT_EXECUTION_ENV", "REMOTE")
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "lin")
@@ -307,9 +309,24 @@ def test_dispatch_linux_relaunches_gui(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         bootstrap_module, "ensure_latest_release_version", lambda _caller: None
     )
-    monkeypatch.setattr(bootstrap_module, "is_bundled", lambda: False)
     monkeypatch.setattr(
-        bootstrap_module, "ensure_root_or_relaunch", lambda *_args, **_kwargs: 0
+        bootstrap_module, "configure_linux_askpass", lambda: None
+    )
+    calls: list[tuple[list[str], str, str]] = []
+
+    def _relaunch(self, argv, stage_env, stage_gui):
+        calls.append((argv, stage_env, stage_gui))
+        return BootstrapResult(code=0, signal=BootstrapSignal.OK)
+
+    monkeypatch.setattr(
+        bootstrap_module.Bootstrap,
+        "_relaunch_linux_gui_as_user",
+        _relaunch,
+    )
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_root_or_relaunch",
+        lambda *_args, **_kwargs: pytest.fail("Linux must not elevate the GUI"),
     )
 
     result = bootstrap_module.Bootstrap()._dispatch(
@@ -319,6 +336,31 @@ def test_dispatch_linux_relaunches_gui(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     assert result.signal == BootstrapSignal.OK
+    assert calls == [(["main.py"], "FIT_BOOTSTRAP_STAGE", "gui")]
+
+
+@pytest.mark.unit
+def test_dispatch_linux_reports_missing_askpass(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_bootstrap_init_dependencies(monkeypatch)
+    monkeypatch.setenv("FIT_EXECUTION_ENV", "REMOTE")
+    monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "lin")
+    monkeypatch.setattr(
+        bootstrap_module, "ensure_latest_release_version", lambda _caller: None
+    )
+    monkeypatch.setattr(
+        bootstrap_module, "configure_linux_askpass", lambda: "askpass"
+    )
+
+    result = bootstrap_module.Bootstrap()._dispatch(
+        argv=["main.py"],
+        stage_env="FIT_BOOTSTRAP_STAGE",
+        stage_gui="gui",
+    )
+
+    assert result.signal == BootstrapSignal.ERROR
+    assert "askpass" in (result.message or "")
 
 
 @pytest.mark.unit
@@ -356,9 +398,15 @@ def test_dispatch_can_skip_already_completed_preflight(
 ) -> None:
     _patch_bootstrap_init_dependencies(monkeypatch)
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "lin")
-    monkeypatch.setattr(bootstrap_module, "is_bundled", lambda: False)
     monkeypatch.setattr(
-        bootstrap_module, "ensure_root_or_relaunch", lambda *_args, **_kwargs: 0
+        bootstrap_module, "configure_linux_askpass", lambda: None
+    )
+    monkeypatch.setattr(
+        bootstrap_module.Bootstrap,
+        "_relaunch_linux_gui_as_user",
+        lambda *_args, **_kwargs: BootstrapResult(
+            code=0, signal=BootstrapSignal.OK
+        ),
     )
     bootstrap = bootstrap_module.Bootstrap()
     monkeypatch.setattr(
