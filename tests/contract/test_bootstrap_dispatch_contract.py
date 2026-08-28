@@ -34,7 +34,7 @@ def _patch_bootstrap_init_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.contract
-@pytest.mark.parametrize("platform", ["win", "lin"])
+@pytest.mark.parametrize("platform", ["win"])
 def test_dispatch_unsupported_platform_contract(
     platform: str,
     monkeypatch: pytest.MonkeyPatch,

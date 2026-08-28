@@ -72,7 +72,7 @@ class Bootstrap:
         os.environ[FIT_PUBLIC_IP] = self.acquisition_context.public_ip
         os.environ[FIT_DNS] = ",".join(self.acquisition_context.dns_servers)
         os.environ[FIT_USER_SYSTEM_LANG] = get_system_lang()
-        os.environ[FIT_EXECUTION_ENV] = "LOCAL_PC"
+        os.environ.setdefault(FIT_EXECUTION_ENV, "LOCAL_PC")
         os.environ[FIT_VERSION] = get_version()
 
         self.__translations = load_translations()
@@ -97,8 +97,13 @@ class Bootstrap:
         argv: list[str] | None = None,
         stage_env: str | None = None,
         stage_gui: str | None = None,
+        preflight_completed: bool = False,
     ) -> BootstrapResult:
-        result = self._run_common_checks(argv, stage_env, stage_gui)
+        result = (
+            None
+            if preflight_completed
+            else self.run_preflight_checks(argv, stage_env, stage_gui)
+        )
         if result is None:
             assert argv is not None
             assert stage_env is not None
@@ -115,13 +120,7 @@ class Bootstrap:
                     ),
                 )
             elif platform == "lin":
-                result = BootstrapResult(
-                    code=1,
-                    signal=BootstrapSignal.ERROR,
-                    message=self.__translations.get(
-                        "BOOSTSTRAP_UNSUPPORTED_OS_MESSAGE", ""
-                    ),
-                )
+                result = self._dispatch_linux(argv, stage_env, stage_gui)
             else:
                 result = BootstrapResult(
                     code=1,
@@ -134,6 +133,14 @@ class Bootstrap:
         if on_signal is not None:
             on_signal(result)
         return result
+
+    def run_preflight_checks(
+        self,
+        argv: list[str] | None,
+        stage_env: str | None,
+        stage_gui: str | None,
+    ) -> BootstrapResult | None:
+        return self._run_common_checks(argv, stage_env, stage_gui)
 
     def _run_common_checks(
         self,
@@ -150,11 +157,12 @@ class Bootstrap:
                 ),
             )
 
-        os_requirements_result = ensure_supported_os_configuration(
-            self.acquisition_context
-        )
-        if os_requirements_result is not None:
-            return os_requirements_result
+        if os.environ.get(FIT_EXECUTION_ENV) == "LOCAL_PC":
+            os_requirements_result = ensure_supported_os_configuration(
+                self.acquisition_context
+            )
+            if os_requirements_result is not None:
+                return os_requirements_result
 
         connectivity_result = ensure_connectivity_available()
         if connectivity_result is not None:
@@ -195,6 +203,22 @@ class Bootstrap:
         if permission_result.code != 0:
             return permission_result
 
+        return self._relaunch_gui(argv, stage_env, stage_gui)
+
+    def _dispatch_linux(
+        self,
+        argv: list[str],
+        stage_env: str,
+        stage_gui: str,
+    ) -> BootstrapResult:
+        return self._relaunch_gui(argv, stage_env, stage_gui)
+
+    def _relaunch_gui(
+        self,
+        argv: list[str],
+        stage_env: str,
+        stage_gui: str,
+    ) -> BootstrapResult:
         if is_bundled():
             relaunch_argv = list(argv[1:])
         else:

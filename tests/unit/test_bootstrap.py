@@ -42,6 +42,7 @@ def _patch_bootstrap_init_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_bootstrap_init_sets_expected_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_bootstrap_init_dependencies(monkeypatch)
     monkeypatch.delenv("FIT_MITM_PORT", raising=False)
+    monkeypatch.delenv("FIT_EXECUTION_ENV", raising=False)
 
     bootstrap_module.Bootstrap(debug_enabled=True, caller=CallerProfile.FIT)
 
@@ -58,6 +59,18 @@ def test_bootstrap_init_sets_expected_environment(monkeypatch: pytest.MonkeyPatc
     assert os.environ["FIT_EXECUTION_ENV"] == "LOCAL_PC"
     assert os.environ["FIT_VERSION"] == "1.0.0"
     assert os.environ["FIT_MITM_PORT"] == "9080"
+
+
+@pytest.mark.unit
+def test_bootstrap_preserves_configured_execution_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_bootstrap_init_dependencies(monkeypatch)
+    monkeypatch.setenv("FIT_EXECUTION_ENV", "REMOTE")
+
+    bootstrap_module.Bootstrap()
+
+    assert os.environ["FIT_EXECUTION_ENV"] == "REMOTE"
 
 
 @pytest.mark.unit
@@ -255,7 +268,7 @@ def test_dispatch_returns_admin_denied_on_failed_relaunch(
 
 
 @pytest.mark.unit
-def test_dispatch_returns_unsupported_for_non_macos(
+def test_dispatch_returns_unsupported_for_windows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _patch_bootstrap_init_dependencies(monkeypatch)
@@ -283,17 +296,85 @@ def test_dispatch_returns_unsupported_for_non_macos(
         "<strong style=\"color:red\">FIT è compatibile solo con macOS, Windows e Linux.</strong>"
     )
 
+@pytest.mark.unit
+def test_dispatch_linux_relaunches_gui(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_bootstrap_init_dependencies(monkeypatch)
+    monkeypatch.setenv("FIT_EXECUTION_ENV", "REMOTE")
     monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "lin")
-    result = bootstrap._dispatch(
+    monkeypatch.setattr(
+        bootstrap_module, "ensure_screen_recoder_available", lambda: None
+    )
+    monkeypatch.setattr(
+        bootstrap_module, "ensure_latest_release_version", lambda _caller: None
+    )
+    monkeypatch.setattr(bootstrap_module, "is_bundled", lambda: False)
+    monkeypatch.setattr(
+        bootstrap_module, "ensure_root_or_relaunch", lambda *_args, **_kwargs: 0
+    )
+
+    result = bootstrap_module.Bootstrap()._dispatch(
         argv=["main.py"],
         stage_env="FIT_BOOTSTRAP_STAGE",
         stage_gui="gui",
     )
-    assert result.signal == BootstrapSignal.ERROR
-    assert result.message == (
-        "Sistema operativo non supportato. <br><br>"
-        "<strong style=\"color:red\">FIT è compatibile solo con macOS, Windows e Linux.</strong>"
+
+    assert result.signal == BootstrapSignal.OK
+
+
+@pytest.mark.unit
+def test_os_requirements_are_skipped_outside_local_pc(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_bootstrap_init_dependencies(monkeypatch)
+    monkeypatch.setenv("FIT_EXECUTION_ENV", "REMOTE")
+    called: list[bool] = []
+    monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_supported_os_configuration",
+        lambda _context: called.append(True),
     )
+    monkeypatch.setattr(
+        bootstrap_module, "ensure_screen_recoder_available", lambda: None
+    )
+    monkeypatch.setattr(
+        bootstrap_module, "ensure_latest_release_version", lambda _caller: None
+    )
+
+    result = bootstrap_module.Bootstrap()._run_common_checks(
+        argv=["main.py"],
+        stage_env="FIT_BOOTSTRAP_STAGE",
+        stage_gui="gui",
+    )
+
+    assert result is None
+    assert called == []
+
+
+@pytest.mark.unit
+def test_dispatch_can_skip_already_completed_preflight(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_bootstrap_init_dependencies(monkeypatch)
+    monkeypatch.setattr(bootstrap_module, "get_platform", lambda: "lin")
+    monkeypatch.setattr(bootstrap_module, "is_bundled", lambda: False)
+    monkeypatch.setattr(
+        bootstrap_module, "ensure_root_or_relaunch", lambda *_args, **_kwargs: 0
+    )
+    bootstrap = bootstrap_module.Bootstrap()
+    monkeypatch.setattr(
+        bootstrap,
+        "run_preflight_checks",
+        lambda *_args: pytest.fail("preflight must not run twice"),
+    )
+
+    result = bootstrap._dispatch(
+        argv=["main.py"],
+        stage_env="FIT_BOOTSTRAP_STAGE",
+        stage_gui="gui",
+        preflight_completed=True,
+    )
+
+    assert result.signal == BootstrapSignal.OK
 
 
 @pytest.mark.unit

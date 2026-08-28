@@ -229,22 +229,33 @@ def main() -> int:
     bootstrap = Bootstrap(
         debug_enabled=debug_enabled, caller=CallerProfile.FIT_BOOTSTRAP
     )
+
+    preflight_result = bootstrap.run_preflight_checks(
+        argv=list(sys.argv),
+        stage_env=STAGE_ENV,
+        stage_gui=STAGE_GUI,
+    )
+    if preflight_result is not None:
+        _log_bootstrap_result(preflight_result)
+        return preflight_result.code
+
     mitm_runner = MitmproxyRunner()
     if not mitm_runner.start():
         debug("❌ mitmproxy start failed", context="main.fit_bootstrap")
         return 1
 
-    preflight_result = bootstrap._dispatch(
+    dispatch_result = bootstrap._dispatch(
         on_signal=_log_bootstrap_result,
         argv=list(sys.argv),
         stage_env=STAGE_ENV,
         stage_gui=STAGE_GUI,
+        preflight_completed=True,
     )
 
-    if preflight_result.code != 0:
+    if dispatch_result.code != 0:
         pass
         # mitm_runner.stop_by_pid()
-    return preflight_result.code
+    return dispatch_result.code
 
 
 if __name__ == "__main__":
