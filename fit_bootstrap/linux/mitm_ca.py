@@ -296,7 +296,7 @@ def ensure_linux_mitm_ca_preflight() -> BootstrapResult | None:
 def _is_trusted(cert_path: Path, openssl: str) -> bool:
     try:
         result = subprocess.run(
-            [openssl, "verify", "-purpose", "sslserver", str(cert_path)],
+            [openssl, "verify", str(cert_path)],
             capture_output=True, text=True, check=False,
         )
     except OSError:

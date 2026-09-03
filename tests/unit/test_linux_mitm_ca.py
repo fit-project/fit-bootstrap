@@ -10,7 +10,6 @@ import pytest
 from fit_bootstrap.constants import FIT_MITM_CONF_DIR, FIT_USER_APP_PATH
 from fit_bootstrap.linux import mitm_ca
 
-
 FP_A = "A" * 64
 FP_B = "B" * 64
 
@@ -144,6 +143,59 @@ def test_sha256_fingerprint_and_ca_validation(monkeypatch: pytest.MonkeyPatch, t
     assert mitm_ca.certificate_fingerprint(cert, "/usr/bin/openssl") == FP_A
 
 
+@pytest.mark.unit
+def test_is_trusted_verifies_ca_against_trust_store(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    cert = tmp_path / "ca.pem"
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(mitm_ca.subprocess, "run", run)
+
+    assert mitm_ca._is_trusted(cert, "/usr/bin/openssl")
+    assert calls == [
+        (
+            ["/usr/bin/openssl", "verify", str(cert)],
+            {"capture_output": True, "text": True, "check": False},
+        )
+    ]
+    command, kwargs = calls[0]
+    assert "shell" not in kwargs
+    assert "sudo" not in command
+    assert "pkexec" not in command
+    assert "-purpose" not in command
+    assert "sslserver" not in command
+
+
+@pytest.mark.unit
+def test_is_trusted_returns_false_for_untrusted_ca(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        mitm_ca.subprocess,
+        "run",
+        lambda command, **kwargs: subprocess.CompletedProcess(command, 2),
+    )
+
+    assert not mitm_ca._is_trusted(tmp_path / "ca.pem", "/usr/bin/openssl")
+
+
+@pytest.mark.unit
+def test_is_trusted_returns_false_on_execution_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    def run(_command, **_kwargs):
+        raise OSError("openssl unavailable")
+
+    monkeypatch.setattr(mitm_ca.subprocess, "run", run)
+
+    assert not mitm_ca._is_trusted(tmp_path / "ca.pem", "/usr/bin/openssl")
+
+
 def _prepare_install(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, installed: str | None, trusted: bool):
     conf = tmp_path / "mitmproxy" / "conf"
     conf.mkdir(parents=True)
@@ -165,6 +217,30 @@ def test_matching_installed_and_trusted_ca_needs_no_elevation(monkeypatch: pytes
     _prepare_install(monkeypatch, tmp_path, FP_A, True)
     monkeypatch.setattr(mitm_ca.subprocess, "run", lambda *_a, **_k: pytest.fail("no elevation expected"))
     assert mitm_ca.ensure_linux_mitm_ca().outcome == mitm_ca.MitmCAOutcome.READY
+
+
+@pytest.mark.unit
+def test_matching_installed_ca_passes_preflight_without_reinstallation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    is_trusted = mitm_ca._is_trusted
+    source = _prepare_install(monkeypatch, tmp_path, FP_A, True)
+    monkeypatch.setattr(mitm_ca, "_is_trusted", is_trusted)
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(mitm_ca.subprocess, "run", run)
+
+    assert mitm_ca.ensure_linux_mitm_ca().outcome == mitm_ca.MitmCAOutcome.READY
+    assert mitm_ca.ensure_linux_mitm_ca_preflight() is None
+    assert calls == [
+        ["/usr/bin/openssl", "verify", str(source.resolve())],
+        ["/usr/bin/openssl", "verify", str(source.resolve())],
+    ]
+    assert all("install" not in command and "pkexec" not in command for command in calls)
 
 
 @pytest.mark.unit
