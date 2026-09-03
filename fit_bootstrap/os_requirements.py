@@ -8,7 +8,6 @@ import os
 import platform
 import re
 import shutil
-import subprocess
 from pathlib import Path
 
 from fit_common.core import get_platform
@@ -79,8 +78,6 @@ def _ensure_supported_linux_configuration() -> BootstrapResult | None:
         failures.append("GTK 3")
     if not _library_available("webkit2gtk-4.1", ("libwebkit2gtk-4.1.so.0",)):
         failures.append("WebKitGTK 4.1")
-    if not _can_access_gnome_proxy_settings():
-        failures.append("GNOME/GSettings proxy support")
 
     if not failures:
         return None
@@ -136,39 +133,6 @@ def _can_connect_to_x11() -> bool:
         x11.XCloseDisplay(display)
         return True
     except (AttributeError, OSError):
-        return False
-
-
-def _can_access_gnome_proxy_settings(
-    gsettings_path: str | None = None,
-) -> bool:
-    if gsettings_path is None:
-        gsettings_path = shutil.which("gsettings")
-    if gsettings_path is None:
-        return False
-
-    settings = (
-        ("org.gnome.system.proxy", "mode"),
-        ("org.gnome.system.proxy", "autoconfig-url"),
-        ("org.gnome.system.proxy", "ignore-hosts"),
-        ("org.gnome.system.proxy.http", "enabled"),
-        ("org.gnome.system.proxy.http", "host"),
-        ("org.gnome.system.proxy.http", "port"),
-        ("org.gnome.system.proxy.https", "host"),
-        ("org.gnome.system.proxy.https", "port"),
-    )
-    try:
-        return all(
-            subprocess.run(
-                [gsettings_path, "get", schema, key],
-                capture_output=True,
-                check=False,
-                timeout=3,
-            ).returncode
-            == 0
-            for schema, key in settings
-        )
-    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
         return False
 
 
