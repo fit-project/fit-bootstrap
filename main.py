@@ -263,7 +263,10 @@ def _run_gui() -> int:
 
 def main() -> int:
 
-    if get_platform() == "macos" and os.environ.get("FIT_MITM_LAUNCH") == "1":
+    if (
+        get_platform() in {"macos", "lin"}
+        and os.environ.get("FIT_MITM_LAUNCH") == "1"
+    ):
         from mitmproxy.tools.main import mitmdump
 
         return mitmdump()

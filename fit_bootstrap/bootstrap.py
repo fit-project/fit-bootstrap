@@ -26,6 +26,7 @@ from fit_bootstrap.constants import (
     FIT_LINUX_ASKPASS_PYTHON,
     FIT_LINUX_SUDO_ASKPASS,
     FIT_LOG_APP_PATH,
+    FIT_MITM_CONF_DIR,
     FIT_MITM_PORT,
     FIT_OS_TYPE,
     FIT_OS_VERSION,
@@ -39,6 +40,7 @@ from fit_bootstrap.constants import (
 from fit_bootstrap.context import AcquisitionContext
 from fit_bootstrap.lang import load_translations
 from fit_bootstrap.linux.privilege import configure_linux_askpass
+from fit_bootstrap.linux.mitm_ca import ensure_linux_mitm_ca_preflight
 from fit_bootstrap.macos.bootstrap import MacBootstrap
 from fit_bootstrap.os_requirements import ensure_supported_os_configuration
 from fit_bootstrap.privilege import ensure_root_or_relaunch
@@ -69,6 +71,12 @@ class Bootstrap:
         self.caller = caller
         os.environ[FIT_DEBUG_ENABLED] = "1" if debug_enabled else "0"
         os.environ[FIT_USER_APP_PATH] = resolve_app_path()
+        if get_platform() == "lin":
+            os.environ[FIT_MITM_CONF_DIR] = str(
+                (
+                    Path(os.environ[FIT_USER_APP_PATH]) / "mitmproxy" / "conf"
+                ).resolve()
+            )
         os.environ[FIT_LOG_APP_PATH] = resolve_log_path()
         self.acquisition_context = AcquisitionContext.collect()
         os.environ[FIT_OS_TYPE] = self.acquisition_context.os_type
@@ -178,6 +186,10 @@ class Bootstrap:
             )
             if os_requirements_result is not None:
                 return os_requirements_result
+            if get_platform() == "lin":
+                ca_result = ensure_linux_mitm_ca_preflight()
+                if ca_result is not None:
+                    return ca_result
 
         connectivity_result = ensure_connectivity_available()
         if connectivity_result is not None:
@@ -276,6 +288,7 @@ class Bootstrap:
                 FIT_LINUX_ASKPASS_BUNDLED: os.environ.get(
                     FIT_LINUX_ASKPASS_BUNDLED, "0"
                 ),
+                FIT_MITM_CONF_DIR: os.environ[FIT_MITM_CONF_DIR],
             }
         )
         try:

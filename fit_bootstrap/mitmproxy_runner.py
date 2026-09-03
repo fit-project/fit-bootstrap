@@ -13,6 +13,7 @@ from fit_common.core import debug, get_context
 from fit_bootstrap.constants import (
     FIT_DEBUG_ENABLED,
     FIT_LOG_APP_PATH,
+    FIT_MITM_CONF_DIR,
     FIT_MITM_PORT,
     FIT_USER_APP_PATH,
 )
@@ -106,6 +107,12 @@ class MitmproxyRunner:
             "--set",
             f"hardump={self.har_file}",
         ]
+        if sys.platform.startswith("linux"):
+            conf_dir = os.environ.get(FIT_MITM_CONF_DIR)
+            if not conf_dir:
+                debug("❌ FIT_MITM_CONF_DIR not set", context=get_context(self))
+                return None
+            cmd += ["--set", f"confdir={Path(conf_dir).resolve()}"]
         mitm_port = os.environ.get(FIT_MITM_PORT)
         if mitm_port:
             try:

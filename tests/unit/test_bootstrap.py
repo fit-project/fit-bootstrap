@@ -23,6 +23,11 @@ def _patch_bootstrap_init_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda: None,
     )
     monkeypatch.setattr(
+        bootstrap_module,
+        "ensure_linux_mitm_ca_preflight",
+        lambda: None,
+    )
+    monkeypatch.setattr(
         bootstrap_module.AcquisitionContext,
         "collect",
         classmethod(
@@ -59,6 +64,7 @@ def test_bootstrap_init_sets_expected_environment(monkeypatch: pytest.MonkeyPatc
     assert os.environ["FIT_EXECUTION_ENV"] == "LOCAL_PC"
     assert os.environ["FIT_VERSION"] == "1.0.0"
     assert os.environ["FIT_MITM_PORT"] == "9080"
+    assert os.environ["FIT_MITM_CONF_DIR"] == "/tmp/app/mitmproxy/conf"
 
 
 @pytest.mark.unit
