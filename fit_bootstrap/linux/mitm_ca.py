@@ -27,6 +27,7 @@ _LOG_CONTEXT = "linux_mitm_ca"
 
 class MitmCAOutcome(str, Enum):
     READY = "ready"
+    INSTALL_REQUIRED = "install_required"
     CA_MISSING = "ca_missing"
     INVALID_CERTIFICATE = "invalid_certificate"
     GENERATION_FAILED = "generation_failed"
@@ -222,7 +223,7 @@ def ensure_ca_material(conf_dir: Path, timeout: float = 15.0) -> MitmCAResult:
     return MitmCAResult(MitmCAOutcome.READY, fingerprint)
 
 
-def ensure_linux_mitm_ca() -> MitmCAResult:
+def ensure_linux_mitm_ca(*, allow_install: bool = True) -> MitmCAResult:
     """Ensure FIT's generated CA is the CA trusted by Debian's system store."""
     conf_dir = configured_conf_dir()
     if conf_dir is None:
@@ -252,6 +253,8 @@ def ensure_linux_mitm_ca() -> MitmCAResult:
     )
     if inspection.status == MitmCAStatus.READY:
         return MitmCAResult(MitmCAOutcome.READY, expected_fingerprint)
+    if not allow_install:
+        return MitmCAResult(MitmCAOutcome.INSTALL_REQUIRED, expected_fingerprint)
 
     pkexec = shutil.which("pkexec")
     helper = Path(__file__).with_name("install_mitm_ca.sh")
@@ -304,9 +307,19 @@ def inspect_linux_mitm_ca(
 
 def ensure_linux_mitm_ca_preflight() -> BootstrapResult | None:
     result = ensure_linux_mitm_ca()
+    return linux_mitm_ca_result_to_bootstrap(result)
+
+
+def linux_mitm_ca_result_to_bootstrap(
+    result: MitmCAResult,
+) -> BootstrapResult | None:
+    """Convert a CA lifecycle result into the bootstrap contract."""
     if result.outcome == MitmCAOutcome.READY:
         return None
     key = {
+        MitmCAOutcome.INSTALL_REQUIRED: (
+            "BOOSTSTRAP_LINUX_MITM_CA_INSTALL_REQUEST_MESSAGE"
+        ),
         MitmCAOutcome.CA_MISSING: "BOOSTSTRAP_LINUX_MITM_CA_MISSING_MESSAGE",
         MitmCAOutcome.INVALID_CERTIFICATE: "BOOSTSTRAP_LINUX_MITM_CA_INVALID_MESSAGE",
         MitmCAOutcome.GENERATION_FAILED: (

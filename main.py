@@ -25,6 +25,11 @@ from fit_bootstrap.constants import (
     STAGE_GUI,
 )
 from fit_bootstrap.lang import load_translations
+from fit_bootstrap.linux.mitm_ca import (
+    MitmCAOutcome,
+    ensure_linux_mitm_ca,
+    linux_mitm_ca_result_to_bootstrap,
+)
 from fit_bootstrap.macos.proxy import MacProxyManager, ProxyState
 from fit_bootstrap.mitmproxy_runner import MitmproxyRunner
 from fit_bootstrap.screen_recorder import (
@@ -48,16 +53,22 @@ def _log_bootstrap_result(result: BootstrapResult) -> None:
 
 
 def _confirm_linux_screen_recorder_install(message: str) -> bool:
-    from PySide6 import QtWidgets
+    translations = load_translations()
+    return _confirm_linux_install(
+        translations.get("BOOSTSTRAP_LINUX_SCREEN_RECORDER_INSTALL_TITLE", ""),
+        message,
+    )
 
+
+def _confirm_linux_install(title: str, message: str) -> bool:
     from fit_common.gui.dialog import Dialog, DialogButtonTypes
+    from PySide6 import QtWidgets
 
     app = QtWidgets.QApplication.instance()
     if app is None:
         app = QtWidgets.QApplication(sys.argv)
-    translations = load_translations()
     dialog = Dialog(
-        translations.get("BOOSTSTRAP_LINUX_SCREEN_RECORDER_INSTALL_TITLE", ""),
+        title,
         message,
         severity=QtWidgets.QMessageBox.Icon.Question,
     )
@@ -69,6 +80,29 @@ def _confirm_linux_screen_recorder_install(message: str) -> bool:
     finally:
         dialog.deleteLater()
         app.processEvents()
+
+
+def _install_linux_mitm_ca_from_ui() -> BootstrapResult | None:
+    inspection = ensure_linux_mitm_ca(allow_install=False)
+    if inspection.outcome == MitmCAOutcome.READY:
+        return None
+    if inspection.outcome != MitmCAOutcome.INSTALL_REQUIRED:
+        return linux_mitm_ca_result_to_bootstrap(inspection)
+
+    translations = load_translations()
+    if not _confirm_linux_install(
+        translations.get("ASKPASS_DIALOG_TITLE", ""),
+        translations.get("ASKPASS_DIALOG_MESSAGE", ""),
+    ):
+        return BootstrapResult(
+            code=1,
+            signal=BootstrapSignal.ERROR,
+            message=translations.get(
+                "BOOSTSTRAP_CERTIFICATE_NOT_INSTALLED_MESSAGE", ""
+            ),
+        )
+
+    return linux_mitm_ca_result_to_bootstrap(ensure_linux_mitm_ca())
 
 
 def _install_linux_screen_recorder_from_ui() -> BootstrapResult | None:
@@ -322,12 +356,18 @@ def main() -> int:
         stage_env=STAGE_ENV,
         stage_gui=STAGE_GUI,
         check_screen_recorder=not needs_linux_recorder_install,
+        check_linux_mitm_ca=not needs_linux_recorder_install,
     )
     if preflight_result is not None:
         _log_bootstrap_result(preflight_result)
         return preflight_result.code
 
     if needs_linux_recorder_install:
+        ca_result = _install_linux_mitm_ca_from_ui()
+        if ca_result is not None:
+            _log_bootstrap_result(ca_result)
+            return ca_result.code
+
         recorder_result = _install_linux_screen_recorder_from_ui()
         if recorder_result is not None:
             _log_bootstrap_result(recorder_result)

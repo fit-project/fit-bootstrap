@@ -1,5 +1,5 @@
 {
-    "ASKPASS_DIALOG_MESSAGE" : "Sembra che il certificato di <strong>MITMPROXY</strong> non sia installato.<br/><br/><strong style=\"color:red\">Senza questo certificato, FIT Web non pu\u00f2 intercettare il traffico HTTPS e quindi non pu\u00f2 funzionare.</strong><br/><br/>Per installarlo servono i privilegi di amministratore: ti verr\u00e0 richiesta la password di root (anche pi\u00f9 volte).<br><br>Questa operazione avviene solo la prima volta.",
+    "ASKPASS_DIALOG_MESSAGE" : "Sembra che il certificato di <strong>MITMPROXY</strong> non sia installato.<br/><br/><strong style=\"color:red\">Senza questo certificato, FIT Web non pu\u00f2 intercettare il traffico HTTPS e quindi non pu\u00f2 funzionare.</strong><br/><br/>Per installarlo servono i privilegi di amministratore: ti verr\u00e0 richiesta la password di root.<br><br>Questa operazione avviene solo la prima volta.",
     "ASKPASS_DIALOG_TITLE": "Installazione certificato MITMPROXY",
     "USER_IS_NOT_ADMIN_TITLE": "Privilegi Utente",
     "USER_IS_NOT_ADMIN_MSG": "Per avviare <strong>FIT</strong> sono necessari i privilegi di {}.<br><br><strong style=\"color:red\">Senza tali privilegi FIT non pu\u00f2 funzionare.</strong>",

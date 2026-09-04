@@ -39,8 +39,8 @@ from fit_bootstrap.constants import (
 )
 from fit_bootstrap.context import AcquisitionContext
 from fit_bootstrap.lang import load_translations
-from fit_bootstrap.linux.privilege import configure_linux_askpass
 from fit_bootstrap.linux.mitm_ca import ensure_linux_mitm_ca_preflight
+from fit_bootstrap.linux.privilege import configure_linux_askpass
 from fit_bootstrap.macos.bootstrap import MacBootstrap
 from fit_bootstrap.os_requirements import ensure_supported_os_configuration
 from fit_bootstrap.privilege import ensure_root_or_relaunch
@@ -155,12 +155,14 @@ class Bootstrap:
         stage_gui: str | None,
         *,
         check_screen_recorder: bool = True,
+        check_linux_mitm_ca: bool = True,
     ) -> BootstrapResult | None:
         return self._run_common_checks(
             argv,
             stage_env,
             stage_gui,
             check_screen_recorder=check_screen_recorder,
+            check_linux_mitm_ca=check_linux_mitm_ca,
         )
 
     def _run_common_checks(
@@ -170,6 +172,7 @@ class Bootstrap:
         stage_gui: str | None,
         *,
         check_screen_recorder: bool = True,
+        check_linux_mitm_ca: bool = True,
     ) -> BootstrapResult | None:
         if argv is None or stage_env is None or stage_gui is None:
             return BootstrapResult(
@@ -186,7 +189,7 @@ class Bootstrap:
             )
             if os_requirements_result is not None:
                 return os_requirements_result
-            if get_platform() == "lin":
+            if get_platform() == "lin" and check_linux_mitm_ca:
                 ca_result = ensure_linux_mitm_ca_preflight()
                 if ca_result is not None:
                     return ca_result
