@@ -20,7 +20,7 @@ hiddenimports += collect_submodules('fit_common')
 hiddenimports += collect_submodules('fit_assets')
 hiddenimports += collect_submodules('fit_bootstrap')
 hiddenimports += collect_submodules('mitmproxy')
-hiddenimports += ['fit_bootstrap.macos.ui_askpass_dialog']
+hiddenimports += ['fit_bootstrap.ui_askpass_dialog']
 hiddenimports += ['fit_bootstrap.macos.askpass_dialog']
 datas = collect_data_files('fit_assets')
 datas += collect_data_files('fit_common', includes=['lang/*.json'])

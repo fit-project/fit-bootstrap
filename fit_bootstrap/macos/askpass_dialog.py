@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from fit_bootstrap.lang import load_translations
-from fit_bootstrap.macos.ui_askpass_dialog import Ui_askpass_dialog
+from fit_bootstrap.ui_askpass_dialog import Ui_askpass_dialog
 
 
 class AskpassDialog(QtWidgets.QDialog, Ui_askpass_dialog):
