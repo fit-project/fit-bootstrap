@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from fit_common.core import debug
+
 from fit_bootstrap.constants import FIT_MITM_CONF_DIR, FIT_USER_APP_PATH
 from fit_bootstrap.lang import load_translations
 from fit_bootstrap.signals import BootstrapResult, BootstrapSignal
@@ -20,6 +22,7 @@ PUBLIC_CA_NAME = "mitmproxy-ca-cert.pem"
 PRIVATE_CA_NAMES = ("mitmproxy-ca.pem", "mitmproxy-ca.p12")
 SYSTEM_CA_PATH = Path("/usr/local/share/ca-certificates/fit-mitmproxy-ca.crt")
 _AUTH_CANCELLED_CODES = {126, 127}
+_LOG_CONTEXT = "linux_mitm_ca"
 
 
 class MitmCAOutcome(str, Enum):
@@ -34,10 +37,23 @@ class MitmCAOutcome(str, Enum):
     FINGERPRINT_MISMATCH = "fingerprint_mismatch"
 
 
+class MitmCAStatus(str, Enum):
+    READY = "ready"
+    NOT_INSTALLED = "not_installed"
+    FINGERPRINT_MISMATCH = "fingerprint_mismatch"
+    NOT_TRUSTED = "not_trusted"
+
+
 @dataclass(frozen=True)
 class MitmCAResult:
     outcome: MitmCAOutcome
     fingerprint: str | None = None
+
+
+@dataclass(frozen=True)
+class MitmCAInspection:
+    status: MitmCAStatus
+    installed_fingerprint: str | None = None
 
 
 def configured_conf_dir() -> Path | None:
@@ -218,56 +234,72 @@ def ensure_linux_mitm_ca() -> MitmCAResult:
     generated = ensure_ca_material(conf_dir)
     if generated.outcome != MitmCAOutcome.READY:
         return generated
+    expected_fingerprint = generated.fingerprint
+    if expected_fingerprint is None:
+        return MitmCAResult(MitmCAOutcome.INVALID_CERTIFICATE)
 
     source = (conf_dir / PUBLIC_CA_NAME).resolve()
     if (
         source.parent != conf_dir
-        or certificate_fingerprint(source, openssl) != generated.fingerprint
+        or certificate_fingerprint(source, openssl) != expected_fingerprint
     ):
         return MitmCAResult(MitmCAOutcome.INVALID_CERTIFICATE)
 
-    installed_fingerprint = certificate_fingerprint(SYSTEM_CA_PATH, openssl)
-    if installed_fingerprint == generated.fingerprint and _is_trusted(
-        source, openssl
-    ):
-        return MitmCAResult(MitmCAOutcome.READY, generated.fingerprint)
+    inspection = inspect_linux_mitm_ca(source, expected_fingerprint, openssl)
+    debug(
+        f"Linux mitm CA inspection: {inspection.status.value}",
+        context=_LOG_CONTEXT,
+    )
+    if inspection.status == MitmCAStatus.READY:
+        return MitmCAResult(MitmCAOutcome.READY, expected_fingerprint)
 
     pkexec = shutil.which("pkexec")
-    install = shutil.which("install")
-    if pkexec is None or install is None:
+    helper = Path(__file__).with_name("install_mitm_ca.sh")
+    if pkexec is None or not helper.is_file() or not os.access(helper, os.X_OK):
         return MitmCAResult(MitmCAOutcome.TOOL_MISSING)
-    for command in (
-        [
-            pkexec,
-            install,
-            "-o",
-            "root",
-            "-g",
-            "root",
-            "-m",
-            "0644",
-            str(source),
-            str(SYSTEM_CA_PATH),
-        ],
-        [pkexec, update_certs],
-    ):
-        try:
-            result = subprocess.run(
-                command, capture_output=True, text=True, check=False
-            )
-        except OSError:
-            return MitmCAResult(MitmCAOutcome.INSTALL_FAILED)
-        if result.returncode in _AUTH_CANCELLED_CODES:
-            return MitmCAResult(MitmCAOutcome.AUTH_CANCELLED)
-        if result.returncode != 0:
-            return MitmCAResult(MitmCAOutcome.INSTALL_FAILED)
+    try:
+        result = subprocess.run(
+            [pkexec, str(helper), str(source)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return MitmCAResult(MitmCAOutcome.INSTALL_FAILED)
+    if result.returncode in _AUTH_CANCELLED_CODES:
+        return MitmCAResult(MitmCAOutcome.AUTH_CANCELLED)
+    if result.returncode != 0:
+        debug(
+            f"Linux mitm CA helper failed: {(result.stderr or '').strip()}",
+            context=_LOG_CONTEXT,
+        )
+        return MitmCAResult(MitmCAOutcome.INSTALL_FAILED)
 
     installed_fingerprint = certificate_fingerprint(SYSTEM_CA_PATH, openssl)
-    if installed_fingerprint != generated.fingerprint:
+    if installed_fingerprint != expected_fingerprint:
         return MitmCAResult(MitmCAOutcome.FINGERPRINT_MISMATCH)
     if not _is_trusted(source, openssl):
         return MitmCAResult(MitmCAOutcome.TRUST_NOT_UPDATED)
-    return MitmCAResult(MitmCAOutcome.READY, generated.fingerprint)
+    return MitmCAResult(MitmCAOutcome.READY, expected_fingerprint)
+
+
+def inspect_linux_mitm_ca(
+    source: Path,
+    expected_fingerprint: str,
+    openssl: str,
+) -> MitmCAInspection:
+    """Inspect the system CA as the desktop user without requesting elevation."""
+    installed_fingerprint = certificate_fingerprint(SYSTEM_CA_PATH, openssl)
+    if installed_fingerprint is None:
+        return MitmCAInspection(MitmCAStatus.NOT_INSTALLED)
+    if installed_fingerprint != expected_fingerprint:
+        return MitmCAInspection(
+            MitmCAStatus.FINGERPRINT_MISMATCH,
+            installed_fingerprint,
+        )
+    if not _is_trusted(source, openssl):
+        return MitmCAInspection(MitmCAStatus.NOT_TRUSTED, installed_fingerprint)
+    return MitmCAInspection(MitmCAStatus.READY, installed_fingerprint)
 
 
 def ensure_linux_mitm_ca_preflight() -> BootstrapResult | None:

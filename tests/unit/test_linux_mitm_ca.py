@@ -220,6 +220,36 @@ def test_matching_installed_and_trusted_ca_needs_no_elevation(monkeypatch: pytes
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize(
+    ("installed", "trusted", "expected"),
+    [
+        (None, False, mitm_ca.MitmCAStatus.NOT_INSTALLED),
+        (FP_B, False, mitm_ca.MitmCAStatus.FINGERPRINT_MISMATCH),
+        (FP_A, False, mitm_ca.MitmCAStatus.NOT_TRUSTED),
+        (FP_A, True, mitm_ca.MitmCAStatus.READY),
+    ],
+)
+def test_inspect_linux_mitm_ca_reports_unprivileged_status(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    installed: str | None,
+    trusted: bool,
+    expected: mitm_ca.MitmCAStatus,
+) -> None:
+    source = tmp_path / "ca.pem"
+    monkeypatch.setattr(
+        mitm_ca,
+        "certificate_fingerprint",
+        lambda *_args, **_kwargs: installed,
+    )
+    monkeypatch.setattr(mitm_ca, "_is_trusted", lambda *_args: trusted)
+
+    inspection = mitm_ca.inspect_linux_mitm_ca(source, FP_A, "/usr/bin/openssl")
+
+    assert inspection.status == expected
+
+
+@pytest.mark.unit
 def test_matching_installed_ca_passes_preflight_without_reinstallation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -248,7 +278,7 @@ def test_matching_installed_ca_passes_preflight_without_reinstallation(
 def test_installs_only_public_ca_and_updates_store(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, installed: str | None) -> None:
     source = _prepare_install(monkeypatch, tmp_path, installed, False)
     calls = []
-    monkeypatch.setattr(mitm_ca, "_is_trusted", lambda *_a: len(calls) == 2)
+    monkeypatch.setattr(mitm_ca, "_is_trusted", lambda *_a: len(calls) == 1)
     def run(command, **kwargs):
         calls.append(command)
         assert "shell" not in kwargs
@@ -258,9 +288,14 @@ def test_installs_only_public_ca_and_updates_store(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(mitm_ca, "certificate_fingerprint", lambda *_a, **_k: next(fingerprints))
     result = mitm_ca.ensure_linux_mitm_ca()
     assert result.outcome == mitm_ca.MitmCAOutcome.READY
-    assert calls[0][-2:] == [str(source.resolve()), str(mitm_ca.SYSTEM_CA_PATH)]
+    assert calls == [
+        [
+            "/usr/bin/pkexec",
+            str(Path(mitm_ca.__file__).with_name("install_mitm_ca.sh")),
+            str(source.resolve()),
+        ]
+    ]
     assert all("mitmproxy-ca.pem" not in arg for command in calls for arg in command)
-    assert calls[1] == ["/usr/bin/pkexec", "/usr/bin/update-ca-certificates"]
 
 
 @pytest.mark.unit
@@ -314,14 +349,11 @@ def test_update_ca_certificates_failure_is_reported(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _prepare_install(monkeypatch, tmp_path, None, False)
-    call_count = 0
-
-    def run(command, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        return subprocess.CompletedProcess(command, 0 if call_count == 1 else 1)
-
-    monkeypatch.setattr(mitm_ca.subprocess, "run", run)
+    monkeypatch.setattr(
+        mitm_ca.subprocess,
+        "run",
+        lambda command, **kwargs: subprocess.CompletedProcess(command, 1),
+    )
     assert (
         mitm_ca.ensure_linux_mitm_ca().outcome
         == mitm_ca.MitmCAOutcome.INSTALL_FAILED

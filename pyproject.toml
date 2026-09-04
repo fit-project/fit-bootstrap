@@ -12,7 +12,8 @@ exclude = ["fit_bootstrap/macos/ui/**", "fit_bootstrap/mitmproxy_addons/**", "fi
 include = [
     "fit_assets/mitmproxy/mitmproxy-ca-cert.pem",
     "fit_bootstrap/fit_screen_recorder_binaries/linux_x86_64/*.deb",
-    "fit_bootstrap/linux/askpass.sh"
+    "fit_bootstrap/linux/askpass.sh",
+    "fit_bootstrap/linux/install_mitm_ca.sh"
 ]
 
 [tool.poetry.dependencies]
